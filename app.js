@@ -303,7 +303,7 @@ app.get('/deleteProduct/:id', (req, res) => {
 
     connection.query('DELETE FROM products WHERE id = ?', [productId], (error, results) => {
         if (error) {
-            // Handle any error that occurs during the database operation
+            // Handle any error that occurs during the database operations
             console.error("Error deleting product:", error);
             res.status(500).send('Error deleting product');
         } else {
