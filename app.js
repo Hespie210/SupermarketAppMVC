@@ -88,7 +88,7 @@ const validateRegistration = (req, res, next) => {
     next();
 };
 
-// Define routes
+// Define routes (this is for updating the git hub please delete it later)
 app.get('/',  (req, res) => {
     res.render('index', {user: req.session.user} );
 });
