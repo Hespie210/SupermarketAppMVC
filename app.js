@@ -1,11 +1,14 @@
 // app.js
+require('dotenv').config();                // <--- load .env FIRST
+
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const flash = require('connect-flash');
+
 const app = express();
 
-// Ensure DB connects (if using db.js)
+// Ensure DB connects
 require('./db');
 
 // View engine
@@ -21,14 +24,14 @@ app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
 // Sessions + flash
 app.use(session({
-  secret: 'secret',
+  secret: process.env.SESSION_SECRET || 'dev-secret', // <--- from .env
   resave: false,
   saveUninitialized: true,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }
+  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } // 7 days
 }));
 app.use(flash());
 
-// Make user available in all views
+// Make user & flash available in all views
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.success = req.flash('success');
@@ -48,7 +51,7 @@ app.use('/', productRoutes);
 app.use('/', cartRoutes);
 
 // Start server
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;     // <--- from .env if set
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
