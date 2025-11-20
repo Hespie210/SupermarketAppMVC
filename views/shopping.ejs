@@ -8,74 +8,67 @@
   <title>Supermarket App</title>
 </head>
 <body>
-    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="/">Supermarket App</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="collapsibleNavbar">
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <a class="nav-link" href="/cart">View Cart</a>
-            </li> 
-            <li class="nav-item">
-              <a class="nav-link" href="/logout">Logout</a>
-            </li> 
-          </ul>
-        </div>
-      </div>
-    </nav>
+  <%- include('partials/header') %>
 
-  <div class="container">
+  <div class="container mt-3">
     <p>Welcome, <%= user.username %> (<%= user.role %>)</p>
+
+    <div class="text-center">
+      <h2>Products from Supermarket</h2>
+    </div>
+
     <br>
-    <div class="text-center"><h2>Products from Supermarket</h2></div>
-    <br>
+
     <table class="table table-hover small text-center">
       <thead>
-          <tr>
-            <th width="100">Product Name</th>
-            <th width="100">Product Image</th>
-            <th width="50">Quantity</th>
-            <th width="50">Price</th>
-            <th width="50">Quantity</th>
-            <th width="50">Buy</th>
-          </tr>
+        <tr>
+          <th width="100">Product Name</th>
+          <th width="100">Product Image</th>
+          <th width="50">Available Qty</th>
+          <th width="50">Price</th>
+          <th width="120">Buy</th>
+        </tr>
       </thead>
       <tbody>
-        <% for(let i=0; i < products.length; i++) { %>
+        <% for (let i = 0; i < products.length; i++) { %>
           <tr>
-            <td><a href="/product/<%= products[i].id %>" ><%= products[i].productName %></a></td>
-            <td><img src = "images/<%= products[i].image %>" width="20%"></td>
+            <!-- Product name links to details page -->
+            <td>
+              <a href="/product/<%= products[i].id %>">
+                <%= products[i].productName %>
+              </a>
+            </td>
+
+            <!-- Product image -->
+            <td>
+              <img src="images/<%= products[i].image %>" width="20%">
+            </td>
+
+            <!-- Available quantity -->
             <td><%= products[i].quantity %></td>
-            <td>$<%= products[i].price.toFixed(2) %></td>
-            <!-- <td>
-              <select id="role" name="role" class="form-control" >
-                <option value="1" selected >1</option>
-                <option value="2" >2</option>
-                <option value="3" >3</option>
-                <option value="4" >4</option>
-                <option value="5" >5</option>
-              </select>
-            </td> -->
-            <!-- Buy Link -->
-            <!-- <td><a href="/buyProduct/<%#= products[i].id %>" class="btn btn-primary mt-3">Buy</a></td> -->
-            <td>
-              <select class="form-control" onchange="document.getElementById('quantity-<%= products[i].id %>').value = this.value">
-                <% for (let q = 1; q <= 5; q++) { %>
-                  <option value="<%= q %>"><%= q %></option>
-                <% } %>
-              </select>
-            </td>
 
+            <!-- Price formatted to 2 decimal places -->
+            <td>$<%= Number(products[i].price).toFixed(2) %></td>
+
+            <!-- Buy form -->
             <td>
-                <form action="/add-to-cart/<%= products[i].id %>" method="POST">
-                  <input type="hidden" name="quantity" id="quantity-<%= products[i].id %>" value="1">
-                  <button type="submit" class="btn btn-primary mt-3">Buy</button>
+              <% if (products[i].quantity > 0) { %>
+                <form action="/add-to-cart/<%= products[i].id %>" method="POST" class="d-flex">
+                  <input
+                    type="number"
+                    name="quantity"
+                    class="form-control"
+                    min="1"
+                    max="<%= products[i].quantity %>"
+                    value="1"
+                    required
+                  >
+                  <button type="submit" class="btn btn-primary ms-2">Buy</button>
                 </form>
+              <% } else { %>
+                <span class="text-danger fw-bold">Out of stock</span>
+              <% } %>
             </td>
-
           </tr>
         <% } %>
       </tbody>

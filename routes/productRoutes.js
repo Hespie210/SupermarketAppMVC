@@ -1,0 +1,41 @@
+// routes/productRoutes.js
+const express = require('express');
+const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+
+const productController = require('../controllers/productController');
+const { checkAuthenticated, checkAdmin } = require('../middleware/authMiddleware');
+
+// Multer setup for image uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/images');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
+
+// Shopping page for users
+router.get('/shopping', checkAuthenticated, productController.showShopping);
+
+// Product details
+router.get('/product/:id', checkAuthenticated, productController.showProductDetails);
+
+// Admin inventory
+router.get('/inventory', checkAuthenticated, checkAdmin, productController.showInventory);
+
+// Admin add product
+router.get('/addProduct', checkAuthenticated, checkAdmin, productController.showAddProduct);
+router.post('/addProduct', checkAuthenticated, checkAdmin, upload.single('image'), productController.addProduct);
+
+// Admin update product
+router.get('/updateProduct/:id', checkAuthenticated, checkAdmin, productController.showUpdateProduct);
+router.post('/updateProduct/:id', checkAuthenticated, checkAdmin, upload.single('image'), productController.updateProduct);
+
+// Admin delete product
+router.get('/deleteProduct/:id', checkAuthenticated, checkAdmin, productController.deleteProduct);
+
+module.exports = router;
