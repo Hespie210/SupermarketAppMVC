@@ -3,11 +3,45 @@ const db = require('../db');
 
 const Product = {
   getAllProducts: (callback) => {
-    db.query('SELECT * FROM products', callback);
+    const sql = `
+      SELECT 
+        id,
+        productName AS name,
+        quantity,
+        price,
+        image
+      FROM products
+    `;
+    db.query(sql, callback);
+  },
+  
+  searchProductsByName: (searchTerm, callback) => {
+    const like = `%${searchTerm}%`;
+    const sql = `
+      SELECT 
+        id,
+        productName AS name,
+        quantity,
+        price,
+        image
+      FROM products
+      WHERE productName LIKE ?
+    `;
+    db.query(sql, [like], callback);
   },
 
   getProductById: (id, callback) => {
-    db.query('SELECT * FROM products WHERE id = ?', [id], (err, results) => {
+    const sql = `
+      SELECT 
+        id,
+        productName AS name,
+        quantity,
+        price,
+        image
+      FROM products
+      WHERE id = ?
+    `;
+    db.query(sql, [id], (err, results) => {
       if (err) return callback(err);
       callback(null, results[0] || null);
     });
@@ -15,26 +49,50 @@ const Product = {
 
   createProduct: (productData, callback) => {
     const { productName, quantity, price, image } = productData;
-    const sql =
-      'INSERT INTO products (productName, quantity, price, image) VALUES (?, ?, ?, ?)';
+    const sql = `
+      INSERT INTO products (productName, quantity, price, image)
+      VALUES (?, ?, ?, ?)
+    `;
     db.query(sql, [productName, quantity, price, image], callback);
   },
 
   updateProduct: (id, productData, callback) => {
     const { productName, quantity, price, image } = productData;
-    const sql =
-      'UPDATE products SET productName = ?, quantity = ?, price = ?, image = ? WHERE id = ?';
+    const sql = `
+      UPDATE products
+      SET productName = ?, quantity = ?, price = ?, image = ?
+      WHERE id = ?
+    `;
     db.query(sql, [productName, quantity, price, image, id], callback);
   },
 
-  // delete the product + its related purchases
+  // Needed for wishlist
+  getProductsByIds: (ids, callback) => {
+    if (!ids || ids.length === 0) return callback(null, []);
+
+    const placeholders = ids.map(() => '?').join(',');
+
+    const sql = `
+      SELECT
+        id,
+        productName AS name,
+        quantity,
+        price,
+        image
+      FROM products
+      WHERE id IN (${placeholders})
+    `;
+
+    db.query(sql, ids, callback);
+  },
+
+  // delete the product + related purchases
   deleteProduct: (id, callback) => {
-    // 1) delete related purchases first
     const sqlDeletePurchases = 'DELETE FROM purchases WHERE productId = ?';
+
     db.query(sqlDeletePurchases, [id], (err) => {
       if (err) return callback(err);
 
-      // 2) now delete the product
       const sqlDeleteProduct = 'DELETE FROM products WHERE id = ?';
       db.query(sqlDeleteProduct, [id], callback);
     });

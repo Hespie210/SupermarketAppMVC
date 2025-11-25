@@ -2,12 +2,21 @@
 const Product = require('../models/productModel');
 
 const productController = {
-  showShopping: (req, res) => {
-    Product.getAllProducts((err, results) => {
-      if (err) return res.status(500).send('Error loading products');
-      res.render('shopping', { products: results });
-    });
-  },
+showShopping: (req, res) => {
+  const search = (req.query.search || '').trim();
+
+  const done = (err, products) => {
+    if (err) return res.status(500).send('Error loading products');
+    res.render('shopping', { products, search });  // pass search to EJS
+  };
+
+  if (search) {
+    Product.searchProductsByName(search, done);
+  } else {
+    Product.getAllProducts(done);
+  }
+},
+
 
   showInventory: (req, res) => {
     Product.getAllProducts((err, results) => {

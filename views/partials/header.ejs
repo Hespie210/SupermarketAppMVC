@@ -1,12 +1,13 @@
-<nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container-fluid">
     <a class="navbar-brand" href="/">Supermarket App</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div class="collapse navbar-collapse" id="collapsibleNavbar">
-      <ul class="navbar-nav me-auto">
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <% if (user) { %>
           <li class="nav-item">
             <a class="nav-link" href="/shopping">Shop</a>
@@ -15,7 +16,7 @@
             <a class="nav-link" href="/cart">Cart</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/my-purchases">My Purchases</a>
+            <a class="nav-link" href="/wishlist">Wishlist</a>
           </li>
 
           <% if (user.role === 'admin') { %>
@@ -23,18 +24,26 @@
               <a class="nav-link" href="/inventory">Inventory</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/addProduct">Add Product</a>
+              <a class="nav-link" href="/admin/users">Users</a>
             </li>
           <% } %>
         <% } %>
       </ul>
 
-      <ul class="navbar-nav ms-auto">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <% if (user) { %>
-          <li class="nav-item">
-            <span class="navbar-text me-3">
-              Welcome, <%= user.username %> (<%= user.role %>)
+          <li class="nav-item d-flex align-items-center me-2">
+            <% if (user.profileImage) { %>
+              <img src="/profile/<%= user.profileImage %>" alt="Profile"
+                   class="rounded-circle me-2"
+                   style="width:32px;height:32px;object-fit:cover;">
+            <% } %>
+            <span class="navbar-text text-white">
+              <%= user.username %> (<%= user.role %>)
             </span>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/profile">Profile</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/logout">Logout</a>
