@@ -3,8 +3,29 @@ const User = require('../models/userModel');
 
 const userController = {
   showProfile: (req, res) => {
-    // You can also re-fetch from DB, but session is usually enough
-    res.render('profile', { currentUser: req.session.user });
+    const userId = req.session.user.id;
+
+    // Always get the latest data from DB
+    User.getUserById(userId, (err, user) => {
+      if (err) {
+        console.error('Error loading profile:', err);
+        return res.status(500).send('Error loading profile');
+      }
+      if (!user) {
+        return res.status(404).send('User not found');
+      }
+
+      // Refresh session so navbar etc. are in sync
+      req.session.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        profileImage: user.profileImage
+      };
+
+      res.render('profile', { currentUser: req.session.user });
+    });
   },
 
   uploadProfilePhoto: (req, res) => {
@@ -16,9 +37,12 @@ const userController = {
     const userId = req.session.user.id;
 
     User.updateProfileImage(userId, filename, (err) => {
-      if (err) return res.status(500).send('Error saving profile image');
+      if (err) {
+        console.error('Error saving profile image:', err);
+        return res.status(500).send('Error saving profile image');
+      }
 
-      // Update session so navbar changes immediately
+      // Update session so navbar/profile update immediately
       req.session.user.profileImage = filename;
 
       res.redirect('/profile');

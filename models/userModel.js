@@ -21,7 +21,7 @@ const User = {
     });
   },
 
-  // Get user by ID
+  // Get user by ID (includes email, role, profileImage, etc.)
   getUserById: (id, callback) => {
     const sql = 'SELECT * FROM users WHERE id = ?';
     db.query(sql, [id], (err, results) => {
@@ -29,12 +29,6 @@ const User = {
       callback(null, results[0] || null);
     });
   },
-
-  /*
-   * ============================================
-   * 🔥 ADDITIONAL METHODS FOR ADMIN + PROFILE PIC
-   * ============================================
-   */
 
   // Get ALL users (for admin dashboard)
   getAllUsers: (callback) => {
