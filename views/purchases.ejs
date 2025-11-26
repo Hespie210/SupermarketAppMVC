@@ -17,30 +17,38 @@
       <p>You have not bought anything yet.</p>
       <a href="/shopping" class="btn btn-primary">Go Shopping</a>
     <% } else { %>
-      <table class="table table-striped">
-        <thead>
+
+      <table class="table table-bordered text-center align-middle" style="width: 80%; margin: auto;">
+        <thead class="table-light">
           <tr>
-            <th>Date/Time</th>
-            <th>Product</th>
-            <th>Quantity</th>
-            <th>Price per unit</th>
-            <th>Total</th>
+            <th style="width: 40%;">Date/Time</th>
+            <th style="width: 20%;">Total Items</th>
+            <th style="width: 20%;">Total Amount</th>
           </tr>
         </thead>
+
         <tbody>
           <% purchases.forEach(function(p) { %>
             <tr>
-              <td><%= p.createdAt.toLocaleString() %></td>
-              <td><%= p.productName %></td>
-              <td><%= p.quantity %></td>
-                <td>$<%= Number(p.price).toFixed(2) %></td>
-                <td>$<%= (Number(p.price) * Number(p.quantity)).toFixed(2) %></td>
+              <td class="text-start">
+                <a href="/my-purchases/<%= p.receiptTimestamp %>" class="text-decoration-none">
+                  <%= p.createdAt && p.createdAt.toLocaleString
+                        ? p.createdAt.toLocaleString()
+                        : p.createdAt %>
+                </a>
+              </td>
 
+              <td><%= p.totalQuantity %></td>
+
+              <td>$<%= Number(p.totalAmount).toFixed(2) %></td>
             </tr>
           <% }); %>
         </tbody>
+
       </table>
+
     <% } %>
+
   </div>
 </body>
 </html>
