@@ -20,14 +20,13 @@
 <table class="table table-bordered text-center align-middle" style="width: 95%; margin: auto;">
   <thead class="table-light">
     <tr>
-      <th>Receipt</th>
-      <th>Receipt ID</th>
-      <th>Date/Time</th>
+      <th>Order #</th>
       <th>User</th>
       <th>Email</th>
-      <th>Product</th>
-      <th>Qty</th>
+      <th>Date/Time</th>
+      <th>Items</th>
       <th>Total</th>
+      <th>Status</th>
       <th>Action</th>
     </tr>
   </thead>
@@ -35,27 +34,24 @@
   <tbody>
     <% purchases.forEach(p => { %>
       <tr>
-        <td><%= p.id %></td>
-
-        <td><%= p.receiptTimestamp %></td>
-
+        <td>#<%= p.id %></td>
+        <td><%= p.username %></td>
+        <td><%= p.email %></td>
         <td>
           <%= p.createdAt && p.createdAt.toLocaleString
                 ? p.createdAt.toLocaleString()
                 : p.createdAt %>
         </td>
-
-        <td><%= p.username %></td>
-        <td><%= p.email %></td>
-
-        <td><%= p.productName %></td>
-        <td><%= p.quantity %></td>
-
-        <td>$<%= Number(p.subtotal).toFixed(2) %></td>
-
+        <td><%= p.totalQuantity %></td>
+        <td>$<%= Number(p.totalAmount).toFixed(2) %></td>
+        <td>
+          <span class="badge <%= p.status === 'Completed' ? 'bg-success' : p.status === 'Processing' ? 'bg-warning text-dark' : 'bg-secondary' %>">
+            <%= p.status || 'Processing' %>
+          </span>
+        </td>
         <td>
           <a 
-            href="/admin/purchases/<%= p.userId %>/<%= p.receiptTimestamp %>" 
+            href="/admin/purchases/<%= p.id %>" 
             class="btn btn-sm btn-primary"
           >
             View

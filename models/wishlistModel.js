@@ -2,13 +2,14 @@
 const db = require('../db');
 
 const Wishlist = {
-  addItem: (userId, productId, callback) => {
+  addItem: (userId, productId, quantity, callback) => {
+    const qty = Number.isNaN(quantity) ? 1 : quantity;
     const sql = `
-      INSERT INTO wishlist (user_id, product_id)
-      VALUES (?, ?)
-      ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP
+      INSERT INTO wishlist (user_id, product_id, quantity)
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE quantity = VALUES(quantity), created_at = CURRENT_TIMESTAMP
     `;
-    db.query(sql, [userId, productId], callback);
+    db.query(sql, [userId, productId, qty], callback);
   },
 
   removeItem: (userId, productId, callback) => {
@@ -17,7 +18,7 @@ const Wishlist = {
   },
 
   getItemsByUser: (userId, callback) => {
-    const sql = 'SELECT product_id FROM wishlist WHERE user_id = ?';
+    const sql = 'SELECT product_id, quantity FROM wishlist WHERE user_id = ?';
     db.query(sql, [userId], callback);
   }
 };

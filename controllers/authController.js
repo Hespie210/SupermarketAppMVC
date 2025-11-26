@@ -71,6 +71,10 @@ const authController = {
           role: user.role
         };
 
+        // Admins go straight to dashboard (inventory); others to shopping
+        if (user.role === 'admin') {
+          return res.redirect('/inventory');
+        }
         res.redirect('/shopping');
       });
     });

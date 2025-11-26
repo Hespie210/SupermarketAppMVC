@@ -1,13 +1,40 @@
 // controllers/productController.js
 const Product = require('../models/productModel');
 
+const CATEGORY_MAP = [
+  { name: 'Fruits', match: ['apple', 'apples', 'banana', 'bananas'] },
+  { name: 'Vegetables', match: ['broccoli', 'tomato', 'tomatoes'] },
+  { name: 'Beverages', match: ['milk'] },
+  { name: 'Bakery', match: ['bread'] }
+];
+
+function detectCategory(productName = '') {
+  const lower = productName.toLowerCase();
+  for (const group of CATEGORY_MAP) {
+    if (group.match.some(m => lower.includes(m))) return group.name;
+  }
+  return 'Other';
+}
+
 const productController = {
 showShopping: (req, res) => {
   const search = (req.query.search || '').trim();
+  const category = (req.query.category || 'All');
 
   const done = (err, products) => {
     if (err) return res.status(500).send('Error loading products');
-    res.render('shopping', { products, search });  // pass search to EJS
+
+    const decorated = (products || []).map(p => ({
+      ...p,
+      category: detectCategory(p.productName || p.name || '')
+    }));
+
+    const filtered = decorated.filter(p => {
+      const matchesCategory = category === 'All' || p.category === category;
+      return matchesCategory;
+    });
+
+    res.render('shopping', { products: filtered, search, category, categories: ['All', ...CATEGORY_MAP.map(c => c.name), 'Other'] });
   };
 
   if (search) {

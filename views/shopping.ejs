@@ -22,12 +22,28 @@
   <div class="container mt-4">
     <h2 class="mb-3">Welcome, <%= user.username %> (<%= user.role %>)</h2>
 
-    <!-- 🔍 Search bar -->
-    <div class="row mb-4">
+    <!-- Search bar with category filter -->
+    <form class="row g-3 mb-4" method="get" action="/shopping">
       <div class="col-md-6">
-        <input type="text" id="searchInput" class="form-control" placeholder="Search for products...">
+        <input
+          type="text"
+          id="searchInput"
+          class="form-control"
+          name="search"
+          value="<%= search || '' %>"
+          placeholder="Search for products...">
       </div>
-    </div>
+      <div class="col-md-3">
+        <select name="category" class="form-select">
+          <% (categories || []).forEach(function(cat) { %>
+            <option value="<%= cat %>" <%= category === cat ? 'selected' : '' %>><%= cat %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="col-md-3 d-grid">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </form>
 
     <div class="row g-4" id="productList">
       <% products.forEach(function(product) { %>
@@ -54,7 +70,16 @@
                   <button type="submit" class="btn btn-primary btn-sm ms-2">Add to Cart</button>
                 </form>
 
-                <form action="/wishlist/add/<%= product.id %>" method="POST" class="mt-2">
+                <form action="/wishlist/add/<%= product.id %>" method="POST" class="mt-2 d-flex gap-2">
+                  <input
+                    type="number"
+                    name="quantity"
+                    value="1"
+                    min="1"
+                    max="<%= product.quantity %>"
+                    class="form-control form-control-sm"
+                    required
+                  >
                   <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
                     Add to Wishlist
                   </button>
@@ -69,12 +94,12 @@
     </div>
   </div>
 
-  <!-- 🔍 Search highlight script -->
+  <!-- Search highlight script -->
   <script>
     const searchInput = document.getElementById('searchInput');
     const cards = document.querySelectorAll('.product-card');
 
-    searchInput.addEventListener('keyup', () => {
+    searchInput?.addEventListener('keyup', () => {
       const term = searchInput.value.toLowerCase();
 
       cards.forEach(card => {

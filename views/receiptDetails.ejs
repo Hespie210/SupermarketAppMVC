@@ -19,6 +19,12 @@
       <div class="pill">
         <strong class="me-2">Payment</strong> <%= paymentMethod || 'N/A' %>
       </div>
+      <div class="pill">
+        <strong class="me-2">Status</strong>
+        <span class="badge <%= (items[0].status === 'Completed') ? 'bg-success' : (items[0].status === 'Processing') ? 'bg-warning text-dark' : 'bg-secondary' %>">
+          <%= items[0].status || 'Processing' %>
+        </span>
+      </div>
     </div>
     <p class="text-muted mb-3">
       Date/Time:

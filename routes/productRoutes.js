@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 
 const productController = require('../controllers/productController');
-const { checkAuthenticated, checkAdmin } = require('../middleware/authMiddleware');
+const { checkAuthenticated, checkAdmin, checkNonAdmin } = require('../middleware/authMiddleware');
 
 // Multer setup for image uploads
 const storage = multer.diskStorage({
@@ -19,10 +19,10 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Shopping page for users
-router.get('/shopping', checkAuthenticated, productController.showShopping);
+router.get('/shopping', checkNonAdmin, productController.showShopping);
 
 // Product details
-router.get('/product/:id', checkAuthenticated, productController.showProductDetails);
+router.get('/product/:id', checkNonAdmin, productController.showProductDetails);
 
 // Admin inventory
 router.get('/inventory', checkAuthenticated, checkAdmin, productController.showInventory);

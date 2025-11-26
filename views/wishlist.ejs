@@ -27,9 +27,10 @@
                 <h5 class="card-title"><%= product.name %></h5>
                 <p class="card-text small"><%= product.description %></p>
                 <p class="fw-bold mb-1">$<%= product.price.toFixed(2) %></p>
+                <p class="text-muted mb-2">Saved quantity: <strong><%= product.wishlistQty || 1 %></strong></p>
 
                 <form action="/add-to-cart/<%= product.id %>" method="POST" class="mt-auto">
-                  <input type="hidden" name="quantity" value="1">
+                  <input type="hidden" name="quantity" value="<%= product.wishlistQty || 1 %>">
                   <button type="submit" class="btn btn-primary btn-sm w-100 mb-2">
                     Move to Cart
                   </button>

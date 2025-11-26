@@ -5,6 +5,8 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { checkAuthenticated, checkAdmin } = require('../middleware/authMiddleware');
 
+router.get('/admin/dashboard', checkAuthenticated, checkAdmin, adminController.showDashboard);
+router.post('/admin/orders/:orderId/status', checkAuthenticated, checkAdmin, adminController.updateOrderStatus);
 router.get('/admin/users', checkAuthenticated, checkAdmin, adminController.showUsers);
 router.post('/admin/users/delete/:id', checkAuthenticated, checkAdmin, adminController.deleteUser);
 
@@ -13,7 +15,7 @@ router.get('/admin/purchases', checkAuthenticated, checkAdmin, adminController.s
 
 // Admin: detailed view of a single receipt
 router.get(
-  '/admin/purchases/:userId/:timestamp',
+  '/admin/purchases/:orderId',
   checkAuthenticated,
   checkAdmin,
   adminController.showReceiptDetails

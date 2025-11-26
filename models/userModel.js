@@ -41,11 +41,30 @@ const User = {
 
   // Delete user by ID (but NOT admins)
   deleteUserById: (id, callback) => {
-    const sql = `
+    // Clean up dependent rows to avoid FK constraint issues
+    const sqlDeleteWishlist = 'DELETE FROM wishlist WHERE user_id = ?';
+    const sqlDeletePurchases = 'DELETE FROM purchases WHERE userId = ?';
+    const sqlDeleteUser = `
       DELETE FROM users 
       WHERE id = ? AND role != 'admin'
     `;
-    db.query(sql, [id], callback);
+
+    db.beginTransaction(err => {
+      if (err) return callback(err);
+
+      db.query(sqlDeleteWishlist, [id], err1 => {
+        if (err1) return db.rollback(() => callback(err1));
+
+        db.query(sqlDeletePurchases, [id], err2 => {
+          if (err2) return db.rollback(() => callback(err2));
+
+          db.query(sqlDeleteUser, [id], (err3, result) => {
+            if (err3) return db.rollback(() => callback(err3));
+            db.commit(err4 => callback(err4, result));
+          });
+        });
+      });
+    });
   },
 
   // Update profile picture filename
@@ -56,6 +75,14 @@ const User = {
       WHERE id = ?
     `;
     db.query(sql, [filename, id], callback);
+  },
+
+  getUserCount: (callback) => {
+    const sql = 'SELECT COUNT(*) AS totalUsers FROM users';
+    db.query(sql, (err, results) => {
+      if (err) return callback(err);
+      callback(null, results[0]?.totalUsers || 0);
+    });
   }
 };
 

@@ -1,6 +1,6 @@
 // controllers/cartController.js
 const Product = require('../models/productModel');
-const Purchase = require('../models/purchaseModel');
+const Order = require('../models/orderModel');
 
 const cartController = {
   // Show cart
@@ -67,7 +67,7 @@ const cartController = {
     res.redirect('/cart');
   },
 
-  // Checkout: save purchases + clear cart
+  // Checkout: save order + items + clear cart
   // Route: POST /checkout
   checkout: (req, res) => {
     const user = req.session.user;
@@ -88,21 +88,21 @@ const cartController = {
     }
 
     const userId = user.id;
-    const orderNumber = Math.floor(Date.now() / 1000); // align with UNIX timestamp used in receipts
 
-    req.session.lastPaymentMethod = paymentMethod;
-    if (!req.session.orderMeta) req.session.orderMeta = {};
-    req.session.orderMeta[orderNumber] = { paymentMethod };
-
-    Purchase.createPurchases(userId, cart, err => {
+    Order.createOrder(userId, cart, (err, result) => {
       if (err) {
-        console.error('Error creating purchases:', err);
+        console.error('Error creating order:', err);
         return res.status(500).send('Error completing purchase');
       }
 
+      const orderId = result.orderId;
+      req.session.lastPaymentMethod = paymentMethod;
+      if (!req.session.orderMeta) req.session.orderMeta = {};
+      req.session.orderMeta[orderId] = { paymentMethod };
+
       // Clear cart after successful purchase
       req.session.cart = [];
-      req.flash('success', `Order placed! Order #${orderNumber} via ${paymentMethod}.`);
+      req.flash('success', `Order placed! Order #${orderId} via ${paymentMethod}.`);
       res.redirect('/my-purchases');
     });
   },
@@ -112,39 +112,30 @@ const cartController = {
   showPurchases: (req, res) => {
     const userId = req.session.user.id;
 
-    Purchase.getReceiptSummariesByUserId(userId, (err, purchases) => {
+    Order.getOrdersByUser(userId, (err, orders) => {
       if (err) {
         console.error('Error retrieving purchase summaries:', err);
         return res.status(500).send('Error retrieving purchases');
       }
       const meta = req.session.orderMeta || {};
 
-      // Try to backfill the most recent purchase with the last payment method if missing
-      if (purchases && purchases.length) {
-        const recent = purchases[0];
-        const ts = recent.receiptTimestamp;
-        if (!meta[ts] && req.session.lastPaymentMethod) {
-          meta[ts] = { paymentMethod: req.session.lastPaymentMethod };
-          req.session.orderMeta = meta;
-        }
-      }
-
-      const enhanced = (purchases || []).map(p => ({
-        ...p,
-        orderNumber: p.receiptTimestamp,
-        paymentMethod: meta[p.receiptTimestamp]?.paymentMethod || 'N/A'
+      const enhanced = (orders || []).map(o => ({
+        ...o,
+        orderNumber: o.id,
+        paymentMethod: meta[o.id]?.paymentMethod || 'N/A',
+        status: o.status || 'Processing'
       }));
       res.render('purchases', { purchases: enhanced });
     });
   },
 
   // Detailed receipt view for ONE checkout (current user)
-  // Route: GET /my-purchases/:timestamp
+  // Route: GET /my-purchases/:orderId
   showReceiptDetails: (req, res) => {
     const userId = req.session.user.id;
-    const receiptTimestamp = parseInt(req.params.timestamp, 10);
+    const orderId = parseInt(req.params.orderId, 10);
 
-    Purchase.getReceiptDetails(userId, receiptTimestamp, (err, items) => {
+    Order.getOrderDetailsByUser(userId, orderId, (err, items) => {
       if (err) {
         console.error('Error loading receipt details:', err);
         return res.status(500).send('Error loading receipt');
@@ -160,13 +151,13 @@ const cartController = {
       );
 
       const meta = req.session.orderMeta || {};
-      const paymentMethod = meta[receiptTimestamp]?.paymentMethod || 'N/A';
+      const paymentMethod = meta[orderId]?.paymentMethod || 'N/A';
 
       res.render('receiptDetails', {
         items,
         totalAmount,
         receiptDate: items[0].createdAt,
-        orderNumber: receiptTimestamp,
+        orderNumber: orderId,
         paymentMethod
       });
     });

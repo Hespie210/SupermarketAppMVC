@@ -19,33 +19,39 @@
       <a href="/shopping" class="btn btn-primary">Go Shopping</a>
     <% } else { %>
 
-      <table class="table table-bordered text-center align-middle" style="width: 90%; margin: auto;">
+      <table class="table table-bordered text-center align-middle" style="width: 95%; margin: auto;">
         <thead class="table-light">
           <tr>
-            <th style="width: 25%;">Date/Time</th>
             <th style="width: 15%;">Order #</th>
-            <th style="width: 20%;">Payment</th>
-            <th style="width: 20%;">Total Items</th>
-            <th style="width: 20%;">Total Amount</th>
+            <th style="width: 15%;">Payment</th>
+            <th style="width: 15%;">Status</th>
+            <th style="width: 15%;">Total Items</th>
+            <th style="width: 15%;">Total Amount</th>
+            <th style="width: 20%;">Date/Time</th>
+            <th style="width: 10%;"></th>
           </tr>
         </thead>
 
         <tbody>
           <% purchases.forEach(function(p) { %>
             <tr>
-              <td class="text-start">
-                <a href="/my-purchases/<%= p.receiptTimestamp %>" class="text-decoration-none">
-                  <%= p.createdAt && p.createdAt.toLocaleString
-                        ? p.createdAt.toLocaleString()
-                        : p.createdAt %>
-                </a>
-              </td>
-
-              <td><span class="muted-underline">#<%= p.orderNumber || p.receiptTimestamp %></span></td>
+              <td><span class="muted-underline">#<%= p.orderNumber || p.id %></span></td>
               <td><%= p.paymentMethod || 'N/A' %></td>
+              <td>
+                <span class="badge <%= p.status === 'Completed' ? 'bg-success' : p.status === 'Processing' ? 'bg-warning text-dark' : 'bg-secondary' %>">
+                  <%= p.status || 'Processing' %>
+                </span>
+              </td>
               <td><%= p.totalQuantity %></td>
-
               <td>$<%= Number(p.totalAmount).toFixed(2) %></td>
+              <td>
+                <%= p.createdAt && p.createdAt.toLocaleString
+                      ? p.createdAt.toLocaleString()
+                      : p.createdAt %>
+              </td>
+              <td>
+                <a class="btn btn-sm btn-outline-primary" href="/my-purchases/<%= p.orderNumber || p.id %>">View</a>
+              </td>
             </tr>
           <% }); %>
         </tbody>

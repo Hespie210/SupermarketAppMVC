@@ -1,4 +1,4 @@
-// controllers/wishlistController.js
+﻿// controllers/wishlistController.js
 const Wishlist = require('../models/wishlistModel'); // make sure file name matches
 const Product = require('../models/productModel');
 
@@ -11,6 +11,10 @@ const wishlistController = {
       if (err) return res.status(500).send('Error loading wishlist');
 
       const ids = rows.map(r => r.product_id); // matches your wishListModel + DB
+      const qtyMap = rows.reduce((acc, r) => {
+        acc[r.product_id] = r.quantity || 1;
+        return acc;
+      }, {});
 
       if (ids.length === 0) {
         return res.render('wishlist', { products: [] });
@@ -18,7 +22,11 @@ const wishlistController = {
 
       Product.getProductsByIds(ids, (err2, products) => {
         if (err2) return res.status(500).send('Error loading wishlist products');
-        res.render('wishlist', { products });
+        const merged = products.map(p => ({
+          ...p,
+          wishlistQty: qtyMap[p.id] || 1
+        }));
+        res.render('wishlist', { products: merged });
       });
     });
   },
@@ -27,8 +35,9 @@ const wishlistController = {
   addToWishlist: (req, res) => {
     const userId = req.session.user.id;
     const productId = parseInt(req.params.id, 10);
+    const quantity = parseInt(req.body.quantity, 10) || 1;
 
-    Wishlist.addItem(userId, productId, (err) => {
+    Wishlist.addItem(userId, productId, quantity, (err) => {
       if (err) return res.status(500).send('Error adding to wishlist');
       res.redirect('/shopping');
     });
