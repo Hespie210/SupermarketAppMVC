@@ -83,6 +83,29 @@ const adminController = {
     });
   },
 
+  showEditUser: (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    User.getUserById(id, (err, user) => {
+      if (err || !user) {
+        return res.status(404).send('User not found');
+      }
+      res.render('editUser', { user });
+    });
+  },
+
+  updateUser: (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const { username, email, role } = req.body;
+
+    User.updateUser(id, { username, email, role }, (err) => {
+      if (err) {
+        console.error('Error updating user:', err);
+        return res.status(500).send('Error updating user');
+      }
+      res.redirect('/admin/users');
+    });
+  },
+
   // Admin: delete user (do not delete yourself)
   deleteUser: (req, res) => {
     const id = parseInt(req.params.id, 10);
@@ -103,13 +126,27 @@ const adminController = {
 
   // Admin: view all purchase lines
   showAllPurchases: (req, res) => {
+    const { q = '', status = '' } = req.query;
+
     Order.getAllOrdersWithUsers((err, orders) => {
       if (err) {
         console.error('Error loading purchases:', err);
         return res.status(500).send('Error loading purchases');
       }
 
-      res.render('adminPurchases', { purchases: orders });
+      let filtered = orders || [];
+      const term = q.trim().toLowerCase();
+      if (term) {
+        filtered = filtered.filter(o =>
+          (o.username && o.username.toLowerCase().includes(term)) ||
+          (o.email && o.email.toLowerCase().includes(term))
+        );
+      }
+      if (status) {
+        filtered = filtered.filter(o => (o.status || 'Processing') === status);
+      }
+
+      res.render('adminPurchases', { purchases: filtered, q, status });
     });
   },
 
@@ -131,14 +168,22 @@ const adminController = {
         (sum, item) => sum + Number(item.subtotal),
         0
       );
+      const totalItems = items.reduce((sum, item) => sum + Number(item.quantity), 0);
 
       // Reuse same view as user
       res.render('receiptDetails', {
         items,
         totalAmount,
+        totalItems,
+        tax: items[0].tax || 0,
         receiptDate: items[0].createdAt,
         orderNumber: orderId,
-        paymentMethod: 'N/A'
+        invoiceNumber: items[0].invoiceNumber || `INV-${orderId}`,
+        paymentMethod: 'N/A',
+        userInfo: { name: items[0].username, email: items[0].email },
+        status: items[0].status || 'Processing',
+        isAdmin: true,
+        statuses: STATUS_VALUES
       });
     });
   }

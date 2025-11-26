@@ -11,13 +11,32 @@
   <%- include('partials/header') %>
 
   <div class="container mt-4">
-    <h2>All Receipts (Admin)</h2>
-    <hr>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="mb-1">All Receipts</h2>
+        <p class="text-muted mb-0">Orders across all customers</p>
+      </div>
+      <form class="d-flex gap-2" method="get" action="/admin/purchases">
+        <input type="text" class="form-control form-control-sm" name="q" placeholder="Search user/email" value="<%= typeof q !== 'undefined' ? q : '' %>">
+        <select name="status" class="form-select form-select-sm" style="max-width:150px;">
+          <option value="">All statuses</option>
+          <option value="Processing" <%= status === 'Processing' ? 'selected' : '' %>>Processing</option>
+          <option value="Packing" <%= status === 'Packing' ? 'selected' : '' %>>Packing</option>
+          <option value="Ready for Pickup" <%= status === 'Ready for Pickup' ? 'selected' : '' %>>Ready for Pickup</option>
+          <option value="Out for Delivery" <%= status === 'Out for Delivery' ? 'selected' : '' %>>Out for Delivery</option>
+          <option value="Completed" <%= status === 'Completed' ? 'selected' : '' %>>Completed</option>
+          <option value="Cancelled" <%= status === 'Cancelled' ? 'selected' : '' %>>Cancelled</option>
+          <option value="Failed Payment" <%= status === 'Failed Payment' ? 'selected' : '' %>>Failed Payment</option>
+          <option value="Refunded" <%= status === 'Refunded' ? 'selected' : '' %>>Refunded</option>
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+      </form>
+    </div>
 
-    <% if (!purchases || purchases.length === 0) { %>
-      <p>No purchases have been made yet.</p>
-    <% } else { %>
-<table class="table table-bordered text-center align-middle" style="width: 95%; margin: auto;">
+<% if (!purchases || purchases.length === 0) { %>
+  <p>No purchases have been made yet.</p>
+<% } else { %>
+<table class="table table-striped align-middle table-hover">
   <thead class="table-light">
     <tr>
       <th>Order #</th>
@@ -27,16 +46,22 @@
       <th>Items</th>
       <th>Total</th>
       <th>Status</th>
-      <th>Action</th>
+      <th></th>
     </tr>
   </thead>
 
   <tbody>
-    <% purchases.forEach(p => { %>
+    <% purchases.forEach(p => { 
+      const statusClass = p.status === 'Completed' ? 'bg-success' :
+                          p.status === 'Processing' ? 'bg-warning text-dark' :
+                          p.status === 'Packing' || p.status === 'Out for Delivery' ? 'bg-info text-dark' :
+                          p.status === 'Failed Payment' ? 'bg-danger' :
+                          p.status === 'Refunded' ? 'bg-dark' : 'bg-secondary';
+    %>
       <tr>
-        <td>#<%= p.id %></td>
+        <td class="fw-semibold">#<%= p.id %></td>
         <td><%= p.username %></td>
-        <td><%= p.email %></td>
+        <td class="text-muted small"><%= p.email %></td>
         <td>
           <%= p.createdAt && p.createdAt.toLocaleString
                 ? p.createdAt.toLocaleString()
@@ -45,14 +70,14 @@
         <td><%= p.totalQuantity %></td>
         <td>$<%= Number(p.totalAmount).toFixed(2) %></td>
         <td>
-          <span class="badge <%= p.status === 'Completed' ? 'bg-success' : p.status === 'Processing' ? 'bg-warning text-dark' : 'bg-secondary' %>">
+          <span class="badge <%= statusClass %>">
             <%= p.status || 'Processing' %>
           </span>
         </td>
         <td>
           <a 
             href="/admin/purchases/<%= p.id %>" 
-            class="btn btn-sm btn-primary"
+            class="btn btn-sm btn-outline-primary"
           >
             View
           </a>
@@ -61,8 +86,8 @@
     <% }) %>
   </tbody>
 </table>
+<% } %>
 
-    <% } %>
   </div>
 </body>
 </html>

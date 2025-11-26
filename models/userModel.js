@@ -33,7 +33,7 @@ const User = {
   // Get ALL users (for admin dashboard)
   getAllUsers: (callback) => {
     const sql = `
-      SELECT id, username, email, address, contact, role, profileImage 
+      SELECT id, username, email, address, contact, role, profileImage
       FROM users
     `;
     db.query(sql, callback);
@@ -75,6 +75,16 @@ const User = {
       WHERE id = ?
     `;
     db.query(sql, [filename, id], callback);
+  },
+
+  updateUser: (id, data, callback) => {
+    const { username, email, role } = data;
+    const sql = `
+      UPDATE users
+      SET username = ?, email = ?, role = ?
+      WHERE id = ?
+    `;
+    db.query(sql, [username, email, role, id], callback);
   },
 
   getUserCount: (callback) => {

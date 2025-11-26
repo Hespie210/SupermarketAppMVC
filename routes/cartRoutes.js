@@ -14,6 +14,9 @@ router.post('/add-to-cart/:id', checkNonAdmin, cartController.addToCart);
 // Remove item from cart
 router.post('/cart/remove/:id', checkNonAdmin, cartController.removeFromCart);
 
+// Update item quantity
+router.post('/cart/update/:id', checkNonAdmin, cartController.updateItemQuantity);
+
 // Clear entire cart
 router.post('/cart/clear', checkNonAdmin, cartController.clearCart);
 
@@ -29,5 +32,8 @@ router.get(
   checkNonAdmin,
   cartController.showReceiptDetails
 );
+
+// Invoice view after checkout
+router.get('/invoice/:orderId', checkNonAdmin, cartController.showReceiptDetails);
 
 module.exports = router;

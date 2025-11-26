@@ -2,6 +2,14 @@
 const Product = require('../models/productModel');
 const Order = require('../models/orderModel');
 
+function formatInvoiceNumber(id) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `INV-${y}${m}${d}-${id}`;
+}
+
 const cartController = {
   // Show cart
   showCart: (req, res) => {
@@ -14,7 +22,6 @@ const cartController = {
   },
 
   // Add product to cart
-  // Route: POST /add-to-cart/:id
   addToCart: (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const quantity = parseInt(req.body.quantity, 10) || 1;
@@ -22,23 +29,20 @@ const cartController = {
     Product.getProductById(productId, (err, product) => {
       if (err || !product) {
         console.error('Error fetching product for cart:', err);
-        // If product not found, just go back to cart
         return res.redirect('/cart');
       }
 
       if (!req.session.cart) req.session.cart = [];
       const cart = req.session.cart;
 
-      const existingIndex = cart.findIndex(
-        item => item.productId === product.id
-      );
+      const existingIndex = cart.findIndex(item => item.productId === product.id);
 
       if (existingIndex !== -1) {
         cart[existingIndex].quantity += quantity;
       } else {
         cart.push({
           productId: product.id,
-          name: product.productName || product.name, // support both field names
+          name: product.productName || product.name,
           price: Number(product.price),
           quantity,
           image: product.image || null
@@ -51,7 +55,6 @@ const cartController = {
   },
 
   // Remove item from cart
-  // Route: POST /cart/remove/:id
   removeFromCart: (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const cart = req.session.cart || [];
@@ -60,15 +63,26 @@ const cartController = {
     res.redirect('/cart');
   },
 
-  // ✅ Clear entire cart
-  // Route: POST /cart/clear
+  // Update quantity for a cart item
+  updateItemQuantity: (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+    const quantity = Math.max(1, parseInt(req.body.quantity, 10) || 1);
+    const cart = req.session.cart || [];
+    const idx = cart.findIndex(item => item.productId === productId);
+    if (idx !== -1) {
+      cart[idx].quantity = quantity;
+      req.session.cart = cart;
+    }
+    res.redirect('/cart');
+  },
+
+  // Clear entire cart
   clearCart: (req, res) => {
     req.session.cart = [];
     res.redirect('/cart');
   },
 
   // Checkout: save order + items + clear cart
-  // Route: POST /checkout
   checkout: (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
@@ -77,19 +91,22 @@ const cartController = {
     if (!user) {
       return res.redirect('/login');
     }
-
     if (!cart.length) {
       return res.redirect('/cart');
     }
-
     if (!paymentMethod) {
       req.flash('error', 'Please select a payment method.');
       return res.redirect('/cart');
     }
 
     const userId = user.id;
+    const totals = {
+      total: cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0),
+      tax: 0
+    };
+    const invoiceNumber = formatInvoiceNumber(Date.now());
 
-    Order.createOrder(userId, cart, (err, result) => {
+    Order.createOrder(userId, cart, totals, invoiceNumber, (err, result) => {
       if (err) {
         console.error('Error creating order:', err);
         return res.status(500).send('Error completing purchase');
@@ -100,15 +117,13 @@ const cartController = {
       if (!req.session.orderMeta) req.session.orderMeta = {};
       req.session.orderMeta[orderId] = { paymentMethod };
 
-      // Clear cart after successful purchase
       req.session.cart = [];
       req.flash('success', `Order placed! Order #${orderId} via ${paymentMethod}.`);
-      res.redirect('/my-purchases');
+      res.redirect(`/invoice/${orderId}`);
     });
   },
 
   // Summary: one row per checkout for this user
-  // Route: GET /my-purchases
   showPurchases: (req, res) => {
     const userId = req.session.user.id;
 
@@ -130,7 +145,6 @@ const cartController = {
   },
 
   // Detailed receipt view for ONE checkout (current user)
-  // Route: GET /my-purchases/:orderId
   showReceiptDetails: (req, res) => {
     const userId = req.session.user.id;
     const orderId = parseInt(req.params.orderId, 10);
@@ -145,20 +159,25 @@ const cartController = {
         return res.status(404).send('Receipt not found');
       }
 
-      const totalAmount = items.reduce(
-        (sum, item) => sum + Number(item.subtotal),
-        0
-      );
+      const totalAmount = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
 
       const meta = req.session.orderMeta || {};
       const paymentMethod = meta[orderId]?.paymentMethod || 'N/A';
+      const totalItems = items.reduce((sum, item) => sum + Number(item.quantity), 0);
+      const tax = Number(items[0].tax || 0);
 
       res.render('receiptDetails', {
         items,
         totalAmount,
         receiptDate: items[0].createdAt,
         orderNumber: orderId,
-        paymentMethod
+        invoiceNumber: items[0].invoiceNumber || formatInvoiceNumber(orderId),
+        paymentMethod,
+        totalItems,
+        userInfo: { name: items[0].username, email: items[0].email },
+        status: items[0].status || 'Processing',
+        tax,
+        isAdmin: false
       });
     });
   }
