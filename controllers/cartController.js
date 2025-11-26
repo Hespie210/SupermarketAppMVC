@@ -40,7 +40,8 @@ const cartController = {
           productId: product.id,
           name: product.productName || product.name, // support both field names
           price: Number(product.price),
-          quantity
+          quantity,
+          image: product.image || null
         });
       }
 
@@ -71,6 +72,7 @@ const cartController = {
   checkout: (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
+    const paymentMethod = (req.body.paymentMethod || '').trim();
 
     if (!user) {
       return res.redirect('/login');
@@ -80,7 +82,17 @@ const cartController = {
       return res.redirect('/cart');
     }
 
+    if (!paymentMethod) {
+      req.flash('error', 'Please select a payment method.');
+      return res.redirect('/cart');
+    }
+
     const userId = user.id;
+    const orderNumber = Math.floor(Date.now() / 1000); // align with UNIX timestamp used in receipts
+
+    req.session.lastPaymentMethod = paymentMethod;
+    if (!req.session.orderMeta) req.session.orderMeta = {};
+    req.session.orderMeta[orderNumber] = { paymentMethod };
 
     Purchase.createPurchases(userId, cart, err => {
       if (err) {
@@ -90,6 +102,7 @@ const cartController = {
 
       // Clear cart after successful purchase
       req.session.cart = [];
+      req.flash('success', `Order placed! Order #${orderNumber} via ${paymentMethod}.`);
       res.redirect('/my-purchases');
     });
   },
@@ -104,7 +117,24 @@ const cartController = {
         console.error('Error retrieving purchase summaries:', err);
         return res.status(500).send('Error retrieving purchases');
       }
-      res.render('purchases', { purchases });
+      const meta = req.session.orderMeta || {};
+
+      // Try to backfill the most recent purchase with the last payment method if missing
+      if (purchases && purchases.length) {
+        const recent = purchases[0];
+        const ts = recent.receiptTimestamp;
+        if (!meta[ts] && req.session.lastPaymentMethod) {
+          meta[ts] = { paymentMethod: req.session.lastPaymentMethod };
+          req.session.orderMeta = meta;
+        }
+      }
+
+      const enhanced = (purchases || []).map(p => ({
+        ...p,
+        orderNumber: p.receiptTimestamp,
+        paymentMethod: meta[p.receiptTimestamp]?.paymentMethod || 'N/A'
+      }));
+      res.render('purchases', { purchases: enhanced });
     });
   },
 
@@ -129,10 +159,15 @@ const cartController = {
         0
       );
 
+      const meta = req.session.orderMeta || {};
+      const paymentMethod = meta[receiptTimestamp]?.paymentMethod || 'N/A';
+
       res.render('receiptDetails', {
         items,
         totalAmount,
-        receiptDate: items[0].createdAt
+        receiptDate: items[0].createdAt,
+        orderNumber: receiptTimestamp,
+        paymentMethod
       });
     });
   }

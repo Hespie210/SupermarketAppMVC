@@ -19,10 +19,18 @@ showShopping: (req, res) => {
 
 
   showInventory: (req, res) => {
-    Product.getAllProducts((err, results) => {
+    const search = (req.query.search || '').trim();
+
+    const done = (err, results) => {
       if (err) return res.status(500).send('Error loading inventory');
-      res.render('inventory', { products: results });
-    });
+      res.render('inventory', { products: results, search });
+    };
+
+    if (search) {
+      Product.searchProductsByName(search, done);
+    } else {
+      Product.getAllProducts(done);
+    }
   },
 
   showProductDetails: (req, res) => {
@@ -102,6 +110,25 @@ showShopping: (req, res) => {
       if (err) {
         console.error('MYSQL ERROR (deleteProduct):', err);
         return res.status(500).send('Error deleting product');
+      }
+      res.redirect('/inventory');
+    });
+  },
+
+  // ---------- UPDATE QUANTITY ONLY ----------
+  updateQuantity: (req, res) => {
+    const id = req.params.id;
+    const quantity = parseInt(req.body.quantity, 10);
+
+    if (Number.isNaN(quantity) || quantity < 0) {
+      req.flash('error', 'Quantity must be a non-negative number.');
+      return res.redirect('/inventory');
+    }
+
+    Product.updateQuantity(id, quantity, (err) => {
+      if (err) {
+        console.error('MYSQL ERROR (updateQuantity):', err);
+        return res.status(500).send('Error updating quantity');
       }
       res.redirect('/inventory');
     });

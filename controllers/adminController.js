@@ -68,7 +68,9 @@ const adminController = {
       res.render('receiptDetails', {
         items,
         totalAmount,
-        receiptDate: items[0].createdAt
+        receiptDate: items[0].createdAt,
+        orderNumber: receiptTimestamp,
+        paymentMethod: 'N/A'
       });
     });
   }

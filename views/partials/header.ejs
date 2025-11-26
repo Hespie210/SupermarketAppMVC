@@ -1,6 +1,9 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark glass-nav sticky-top">
   <div class="container-fluid">
-    <a class="navbar-brand" href="/">Supermarket App</a>
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/" style="color:#000;">
+      <span class="rounded-circle" style="width:12px;height:12px;display:inline-block;background:var(--accent);"></span>
+      Hespie Supermarket
+    </a>
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
       <span class="navbar-toggler-icon"></span>
@@ -39,7 +42,7 @@
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <% if (user) { %>
           <li class="nav-item">
-            <a class="nav-link" href="/profile">
+            <a class="nav-link user-chip" href="/profile">
               <% if (user.profileImage) { %>
                 <img src="/profile/<%= user.profileImage %>" alt="Profile" style="width:30px;height:30px;border-radius:50%;object-fit:cover;margin-right:8px;">
               <% } %>

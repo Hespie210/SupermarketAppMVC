@@ -6,6 +6,7 @@ const Product = {
     const sql = `
       SELECT 
         id,
+        productName,
         productName AS name,
         quantity,
         price,
@@ -20,6 +21,7 @@ const Product = {
     const sql = `
       SELECT 
         id,
+        productName,
         productName AS name,
         quantity,
         price,
@@ -34,6 +36,7 @@ const Product = {
     const sql = `
       SELECT 
         id,
+        productName,
         productName AS name,
         quantity,
         price,
@@ -96,6 +99,11 @@ const Product = {
       const sqlDeleteProduct = 'DELETE FROM products WHERE id = ?';
       db.query(sqlDeleteProduct, [id], callback);
     });
+  },
+
+  updateQuantity: (id, quantity, callback) => {
+    const sql = 'UPDATE products SET quantity = ? WHERE id = ?';
+    db.query(sql, [quantity, id], callback);
   }
 };
 

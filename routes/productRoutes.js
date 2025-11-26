@@ -26,6 +26,7 @@ router.get('/product/:id', checkAuthenticated, productController.showProductDeta
 
 // Admin inventory
 router.get('/inventory', checkAuthenticated, checkAdmin, productController.showInventory);
+router.post('/inventory/:id/quantity', checkAuthenticated, checkAdmin, productController.updateQuantity);
 
 // Admin add product
 router.get('/addProduct', checkAuthenticated, checkAdmin, productController.showAddProduct);
