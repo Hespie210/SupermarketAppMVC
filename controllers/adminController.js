@@ -1,4 +1,5 @@
 // controllers/adminController.js
+const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
 const Order = require('../models/orderModel');
 
@@ -83,6 +84,34 @@ const adminController = {
     });
   },
 
+  showCreateUser: (req, res) => {
+    res.render('adminCreateUser');
+  },
+
+  createUser: (req, res) => {
+    const { username, email, password, address, contact, role } = req.body;
+    const allowedRoles = ['admin', 'user'];
+    const finalRole = allowedRoles.includes(role) ? role : 'user';
+
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+      if (err) {
+        console.error('Error hashing password (admin create):', err);
+        req.flash('error', 'Unable to create user.');
+        return res.redirect('/admin/users/create');
+      }
+
+      User.createUser(username, email, hashedPassword, address, contact, finalRole, (err2) => {
+        if (err2) {
+          console.error('Error creating user (admin):', err2);
+          req.flash('error', 'Unable to create user.');
+          return res.redirect('/admin/users/create');
+        }
+        req.flash('success', 'User created.');
+        res.redirect('/admin/users');
+      });
+    });
+  },
+
   showEditUser: (req, res) => {
     const id = parseInt(req.params.id, 10);
     User.getUserById(id, (err, user) => {
@@ -115,12 +144,27 @@ const adminController = {
       return res.redirect('/admin/users');
     }
 
-    User.deleteUserById(id, err => {
-      if (err) {
-        console.error('Error deleting user:', err);
-        return res.status(500).send('Error deleting user');
+    User.getUserById(id, (err, user) => {
+      if (err || !user) {
+        console.error('Error finding user for delete:', err);
+        req.flash('error', 'User not found.');
+        return res.redirect('/admin/users');
       }
-      res.redirect('/admin/users');
+
+      if (user.role === 'admin') {
+        req.flash('error', 'Cannot delete an admin account.');
+        return res.redirect('/admin/users');
+      }
+
+      User.deleteUserById(id, errDel => {
+        if (errDel) {
+          console.error('Error deleting user:', errDel);
+          req.flash('error', 'Error deleting user.');
+          return res.redirect('/admin/users');
+        }
+        req.flash('success', 'User deleted.');
+        res.redirect('/admin/users');
+      });
     });
   },
 

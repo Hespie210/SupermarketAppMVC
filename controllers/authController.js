@@ -10,9 +10,8 @@ const authController = {
 
   // Handle register
   register: (req, res) => {
-    const { username, email, password, address, contact, role } = req.body;
-
-    const finalRole = role || 'user'; // default role
+    const { username, email, password, address, contact } = req.body;
+    const finalRole = 'user'; // enforce basic user role on self-registration
 
     bcrypt.hash(password, 10, (err, hashedPassword) => {
       if (err) {

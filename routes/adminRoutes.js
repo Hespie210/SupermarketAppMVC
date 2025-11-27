@@ -8,6 +8,8 @@ const { checkAuthenticated, checkAdmin } = require('../middleware/authMiddleware
 router.get('/admin/dashboard', checkAuthenticated, checkAdmin, adminController.showDashboard);
 router.post('/admin/orders/:orderId/status', checkAuthenticated, checkAdmin, adminController.updateOrderStatus);
 router.get('/admin/users', checkAuthenticated, checkAdmin, adminController.showUsers);
+router.get('/admin/users/create', checkAuthenticated, checkAdmin, adminController.showCreateUser);
+router.post('/admin/users/create', checkAuthenticated, checkAdmin, adminController.createUser);
 router.get('/admin/users/:id/edit', checkAuthenticated, checkAdmin, adminController.showEditUser);
 router.post('/admin/users/:id/edit', checkAuthenticated, checkAdmin, adminController.updateUser);
 router.post('/admin/users/delete/:id', checkAuthenticated, checkAdmin, adminController.deleteUser);

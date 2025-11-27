@@ -13,6 +13,21 @@ const STATUS_VALUES = [
   'Refunded'
 ];
 
+const CATEGORY_MAP = [
+  { name: 'Fruits', match: ['apple', 'apples', 'banana', 'bananas'] },
+  { name: 'Vegetables', match: ['broccoli', 'tomato', 'tomatoes'] },
+  { name: 'Beverages', match: ['milk'] },
+  { name: 'Bakery', match: ['bread'] }
+];
+
+function detectCategory(productName = '') {
+  const lower = productName.toLowerCase();
+  for (const group of CATEGORY_MAP) {
+    if (group.match.some(m => lower.includes(m))) return group.name;
+  }
+  return 'Other';
+}
+
 const Order = {
   // Create order + items in a transaction with graceful fallback if columns missing
   createOrder: (userId, cart, totals, invoiceNumber, callback) => {
@@ -166,7 +181,11 @@ const Order = {
       WHERE o.userId = ? AND o.id = ?
       ORDER BY oi.id
     `;
-    db.query(sql, [userId, orderId], callback);
+    db.query(sql, [userId, orderId], (err, results) => {
+      if (err) return callback(err);
+      const mapped = (results || []).map(r => ({ ...r, category: detectCategory(r.productName) }));
+      callback(null, mapped);
+    });
   },
 
   // Admin: aggregated orders with user info
@@ -219,7 +238,11 @@ const Order = {
       WHERE o.id = ?
       ORDER BY oi.id
     `;
-    db.query(sql, [orderId], callback);
+    db.query(sql, [orderId], (err, results) => {
+      if (err) return callback(err);
+      const mapped = (results || []).map(r => ({ ...r, category: detectCategory(r.productName) }));
+      callback(null, mapped);
+    });
   },
 
   updateStatus: (orderId, status, callback) => {
