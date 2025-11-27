@@ -35,36 +35,19 @@ const User = {
     const sql = `
       SELECT id, username, email, address, contact, role, profileImage
       FROM users
+      WHERE role != 'deleted'
     `;
     db.query(sql, callback);
   },
 
-  // Delete user by ID (but NOT admins)
+  // Soft delete user by ID (preserve record for audit/history; block admins)
   deleteUserById: (id, callback) => {
-    // Clean up dependent rows to avoid FK constraint issues
-    const sqlDeleteWishlist = 'DELETE FROM wishlist WHERE user_id = ?';
-    const sqlDeletePurchases = 'DELETE FROM purchases WHERE userId = ?';
-    const sqlDeleteUser = `
-      DELETE FROM users 
+    const sql = `
+      UPDATE users
+      SET role = 'deleted'
       WHERE id = ? AND role != 'admin'
     `;
-
-    db.beginTransaction(err => {
-      if (err) return callback(err);
-
-      db.query(sqlDeleteWishlist, [id], err1 => {
-        if (err1) return db.rollback(() => callback(err1));
-
-        db.query(sqlDeletePurchases, [id], err2 => {
-          if (err2) return db.rollback(() => callback(err2));
-
-          db.query(sqlDeleteUser, [id], (err3, result) => {
-            if (err3) return db.rollback(() => callback(err3));
-            db.commit(err4 => callback(err4, result));
-          });
-        });
-      });
-    });
+    db.query(sql, [id], callback);
   },
 
   // Update profile picture filename
@@ -88,7 +71,11 @@ const User = {
   },
 
   getUserCount: (callback) => {
-    const sql = 'SELECT COUNT(*) AS totalUsers FROM users';
+    const sql = `
+      SELECT COUNT(*) AS totalUsers
+      FROM users
+      WHERE role != 'deleted'
+    `;
     db.query(sql, (err, results) => {
       if (err) return callback(err);
       callback(null, results[0]?.totalUsers || 0);

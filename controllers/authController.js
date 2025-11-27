@@ -53,6 +53,11 @@ const authController = {
         return res.redirect('/login');
       }
 
+      if (user.role === 'deleted') {
+        req.flash('error', 'This account has been deactivated. Please contact support.');
+        return res.redirect('/login');
+      }
+
       bcrypt.compare(password, user.password, (err2, isMatch) => {
         if (err2) {
           console.error('BCRYPT ERROR (login):', err2);
