@@ -62,14 +62,27 @@ const adminController = {
       return res.redirect('/admin/dashboard');
     }
 
-    Order.updateStatus(orderId, newStatus, (err) => {
-      if (err) {
-        console.error('Error updating order status:', err);
-        req.flash('error', 'Failed to update status.');
-      } else {
-        req.flash('success', 'Order status updated.');
+    Order.getOrderWithUser(orderId, (errOrder, orderInfo) => {
+      if (errOrder || !orderInfo) {
+        console.error('Error loading order for status update:', errOrder);
+        req.flash('error', 'Order not found.');
+        return res.redirect('/admin/dashboard');
       }
-      res.redirect('/admin/dashboard');
+
+      if (orderInfo.userRole === 'deleted') {
+        req.flash('error', 'Status is locked because this account was deleted.');
+        return res.redirect('/admin/dashboard');
+      }
+
+      Order.updateStatus(orderId, newStatus, (err) => {
+        if (err) {
+          console.error('Error updating order status:', err);
+          req.flash('error', 'Failed to update status.');
+        } else {
+          req.flash('success', 'Order status updated.');
+        }
+        res.redirect('/admin/dashboard');
+      });
     });
   },
 
@@ -156,14 +169,22 @@ const adminController = {
         return res.redirect('/admin/users');
       }
 
-      User.deleteUserById(id, errDel => {
-        if (errDel) {
-          console.error('Error deleting user:', errDel);
-          req.flash('error', 'Error deleting user.');
+      Order.cancelOrdersForUser(id, (errCancel) => {
+        if (errCancel) {
+          console.error('Error cancelling orders for deleted user:', errCancel);
+          req.flash('error', 'Could not cancel user orders.');
           return res.redirect('/admin/users');
         }
-        req.flash('success', 'User deleted.');
-        res.redirect('/admin/users');
+
+        User.deleteUserById(id, errDel => {
+          if (errDel) {
+            console.error('Error deleting user:', errDel);
+            req.flash('error', 'Error deleting user.');
+            return res.redirect('/admin/users');
+          }
+          req.flash('success', 'User deleted and active orders cancelled.');
+          res.redirect('/admin/users');
+        });
       });
     });
   },
@@ -227,7 +248,8 @@ const adminController = {
         userInfo: { name: items[0].username, email: items[0].email },
         status: items[0].status || 'Processing',
         isAdmin: true,
-        statuses: STATUS_VALUES
+        statuses: STATUS_VALUES,
+        statusLocked: items[0].userRole === 'deleted'
       });
     });
   }

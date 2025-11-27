@@ -13,6 +13,14 @@ const STATUS_VALUES = [
   'Refunded'
 ];
 
+// Statuses that should be auto-cancelled when a user is removed
+const CANCEL_ON_DELETE_STATUSES = [
+  'Processing',
+  'Packing',
+  'Out for Delivery',
+  'Failed Payment'
+];
+
 const CATEGORY_MAP = [
   { name: 'Fruits', match: ['apple', 'apples', 'banana', 'bananas'] },
   { name: 'Vegetables', match: ['broccoli', 'tomato', 'tomatoes'] },
@@ -202,11 +210,12 @@ const Order = {
         SUM(oi.quantity) AS totalQuantity,
         SUM(oi.quantity * oi.price) AS totalAmount,
         u.username,
-        u.email
+        u.email,
+        u.role AS userRole
       FROM orders o
       JOIN order_items oi ON oi.orderId = o.id
       JOIN users u ON u.id = o.userId
-      GROUP BY o.id, o.userId, o.createdAt, o.status, u.username, u.email
+      GROUP BY o.id, o.userId, o.createdAt, o.status, u.username, u.email, u.role
       ORDER BY o.createdAt DESC
     `;
     db.query(sql, callback);
@@ -230,7 +239,8 @@ const Order = {
         p.productName,
         p.image,
         u.username,
-        u.email
+        u.email,
+        u.role AS userRole
       FROM orders o
       JOIN order_items oi ON oi.orderId = o.id
       JOIN products p ON p.id = oi.productId
@@ -253,7 +263,30 @@ const Order = {
     db.query(sql, [status, orderId], callback);
   },
 
-  STATUS_VALUES
+  getOrderWithUser: (orderId, callback) => {
+    const sql = `
+      SELECT o.id, o.status, o.userId, u.role AS userRole
+      FROM orders o
+      JOIN users u ON u.id = o.userId
+      WHERE o.id = ?
+    `;
+    db.query(sql, [orderId], (err, results) => {
+      if (err) return callback(err);
+      callback(null, results[0] || null);
+    });
+  },
+
+  cancelOrdersForUser: (userId, callback) => {
+    const sql = `
+      UPDATE orders
+      SET status = 'Cancelled'
+      WHERE userId = ? AND status IN (?)
+    `;
+    db.query(sql, [userId, CANCEL_ON_DELETE_STATUSES], callback);
+  },
+
+  STATUS_VALUES,
+  CANCEL_ON_DELETE_STATUSES
 };
 
 module.exports = Order;

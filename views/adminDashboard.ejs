@@ -114,6 +114,7 @@
               <% orders.forEach(o => { 
                 const status = o.status || 'Processing';
                 const badgeClass = statusClassMap[status] || 'bg-secondary';
+                const statusLocked = o.userRole === 'deleted';
               %>
                 <tr>
                   <td>#<%= o.id %></td>
@@ -128,15 +129,21 @@
                     <span class="badge <%= badgeClass %>">
                       <%= status %>
                     </span>
+                    <% if (statusLocked) { %>
+                      <div class="text-muted small">Account deleted</div>
+                    <% } %>
                   </td>
                   <td>
                     <form action="/admin/orders/<%= o.id %>/status" method="POST" class="d-flex gap-2 align-items-center">
-                      <select name="status" class="form-select form-select-sm">
+                      <select name="status" class="form-select form-select-sm" <%= statusLocked ? 'disabled' : '' %>>
                         <% statuses.forEach(opt => { %>
                           <option value="<%= opt %>" <%= opt === status ? 'selected' : '' %>><%= opt %></option>
                         <% }) %>
                       </select>
-                      <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                      <button type="submit" class="btn btn-sm btn-primary" <%= statusLocked ? 'disabled' : '' %>>Save</button>
+                      <% if (statusLocked) { %>
+                        <span class="text-muted small">Locked</span>
+                      <% } %>
                     </form>
                   </td>
                   <td>

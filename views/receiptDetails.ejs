@@ -96,12 +96,15 @@
     <% if (isAdmin && statuses) { %>
       <form action="/admin/orders/<%= orderNumber %>/status" method="POST" class="mt-3 d-flex flex-wrap gap-2 align-items-center">
         <label for="status" class="form-label mb-0">Update Status:</label>
-        <select id="status" name="status" class="form-select" style="max-width:220px;">
+        <select id="status" name="status" class="form-select" style="max-width:220px;" <%= statusLocked ? 'disabled' : '' %>>
           <% statuses.forEach(st => { %>
             <option value="<%= st %>" <%= st === status ? 'selected' : '' %>><%= st %></option>
           <% }); %>
         </select>
-        <button class="btn btn-primary">Save</button>
+        <button class="btn btn-primary" <%= statusLocked ? 'disabled' : '' %>>Save</button>
+        <% if (statusLocked) { %>
+          <span class="text-muted small">Locked because the account was deleted.</span>
+        <% } %>
       </form>
     <% } %>
 
