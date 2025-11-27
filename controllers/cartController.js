@@ -109,7 +109,8 @@ const cartController = {
     Order.createOrder(userId, cart, totals, invoiceNumber, (err, result) => {
       if (err) {
         console.error('Error creating order:', err);
-        return res.status(500).send('Error completing purchase');
+        req.flash('error', err.message || 'Error completing purchase');
+        return res.redirect('/cart');
       }
 
       const orderId = result.orderId;

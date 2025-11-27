@@ -21,6 +21,28 @@ const Order = {
     const total = Number(totals?.total || 0);
     const tax = Number(totals?.tax || 0);
 
+    const decrementInventory = (items, done) => {
+      const sql = `
+        UPDATE products
+        SET quantity = quantity - ?
+        WHERE id = ? AND quantity >= ?
+      `;
+
+      const step = (idx) => {
+        if (idx >= items.length) return done();
+        const item = items[idx];
+        db.query(sql, [item.quantity, item.productId, item.quantity], (err, result) => {
+          if (err) return done(err);
+          if (result.affectedRows === 0) {
+            return done(new Error(`Insufficient stock for product ${item.productId}`));
+          }
+          step(idx + 1);
+        });
+      };
+
+      step(0);
+    };
+
     db.beginTransaction(err => {
       if (err) return callback(err);
 
@@ -66,7 +88,10 @@ const Order = {
           if (errOrd) return db.rollback(() => callback(errOrd));
           doInsertItems(ordId, false, (errItems2) => {
             if (errItems2) return db.rollback(() => callback(errItems2));
-            db.commit(errCommit => callback(errCommit, { orderId: ordId }));
+            decrementInventory(cart, (errStock) => {
+              if (errStock) return db.rollback(() => callback(errStock));
+              db.commit(errCommit => callback(errCommit, { orderId: ordId }));
+            });
           });
         });
 
@@ -84,7 +109,10 @@ const Order = {
             }
             return db.rollback(() => callback(errItems));
           }
-          db.commit(errCommit => callback(errCommit, { orderId }));
+          decrementInventory(cart, (errStock) => {
+            if (errStock) return db.rollback(() => callback(errStock));
+            db.commit(errCommit => callback(errCommit, { orderId }));
+          });
         });
       });
     });
