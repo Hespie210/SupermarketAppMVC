@@ -38,9 +38,9 @@ showShopping: (req, res) => {
   };
 
   if (search) {
-    Product.searchProductsByName(search, done);
+    Product.searchActiveProductsByName(search, done);
   } else {
-    Product.getAllProducts(done);
+    Product.getActiveProducts(done);
   }
 },
 

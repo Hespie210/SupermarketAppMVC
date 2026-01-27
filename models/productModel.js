@@ -50,6 +50,37 @@ const Product = {
     });
   },
 
+  getActiveProducts: (callback) => {
+    const sql = `
+      SELECT 
+        id,
+        productName,
+        productName AS name,
+        quantity,
+        price,
+        image
+      FROM products
+      WHERE quantity > 0
+    `;
+    db.query(sql, callback);
+  },
+  
+  searchActiveProductsByName: (searchTerm, callback) => {
+    const like = `%${searchTerm}%`;
+    const sql = `
+      SELECT 
+        id,
+        productName,
+        productName AS name,
+        quantity,
+        price,
+        image
+      FROM products
+      WHERE productName LIKE ? AND quantity > 0
+    `;
+    db.query(sql, [like], callback);
+  },
+
   createProduct: (productData, callback) => {
     const { productName, quantity, price, image } = productData;
     const sql = `
@@ -91,13 +122,13 @@ const Product = {
 
   // delete the product + related purchases
   deleteProduct: (id, callback) => {
-    const sqlDeletePurchases = 'DELETE FROM purchases WHERE productId = ?';
+    // Remove dependent purchase rows first to satisfy FK constraint, then delete the product row.
+    const deletePurchasesSql = 'DELETE FROM purchases WHERE productId = ?';
+    const deleteProductSql = 'DELETE FROM products WHERE id = ?';
 
-    db.query(sqlDeletePurchases, [id], (err) => {
+    db.query(deletePurchasesSql, [id], (err) => {
       if (err) return callback(err);
-
-      const sqlDeleteProduct = 'DELETE FROM products WHERE id = ?';
-      db.query(sqlDeleteProduct, [id], callback);
+      db.query(deleteProductSql, [id], callback);
     });
   },
 

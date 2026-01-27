@@ -29,7 +29,7 @@ const CATEGORY_MAP = [
 ];
 
 function detectCategory(productName = '') {
-  const lower = productName.toLowerCase();
+  const lower = (productName || '').toLowerCase();
   for (const group of CATEGORY_MAP) {
     if (group.match.some(m => lower.includes(m))) return group.name;
   }
@@ -184,14 +184,22 @@ const Order = {
         p.image
       FROM orders o
       JOIN order_items oi ON oi.orderId = o.id
-      JOIN products p ON p.id = oi.productId
+      LEFT JOIN products p ON p.id = oi.productId
       JOIN users u ON u.id = o.userId
       WHERE o.userId = ? AND o.id = ?
       ORDER BY oi.id
     `;
     db.query(sql, [userId, orderId], (err, results) => {
       if (err) return callback(err);
-      const mapped = (results || []).map(r => ({ ...r, category: detectCategory(r.productName) }));
+      const mapped = (results || []).map(r => {
+        const productName = r.productName || 'Deleted product';
+        return {
+          ...r,
+          productName,
+          image: r.image || null,
+          category: detectCategory(productName)
+        };
+      });
       callback(null, mapped);
     });
   },
@@ -243,14 +251,22 @@ const Order = {
         u.role AS userRole
       FROM orders o
       JOIN order_items oi ON oi.orderId = o.id
-      JOIN products p ON p.id = oi.productId
+      LEFT JOIN products p ON p.id = oi.productId
       JOIN users u ON u.id = o.userId
       WHERE o.id = ?
       ORDER BY oi.id
     `;
     db.query(sql, [orderId], (err, results) => {
       if (err) return callback(err);
-      const mapped = (results || []).map(r => ({ ...r, category: detectCategory(r.productName) }));
+      const mapped = (results || []).map(r => {
+        const productName = r.productName || 'Deleted product';
+        return {
+          ...r,
+          productName,
+          image: r.image || null,
+          category: detectCategory(productName)
+        };
+      });
       callback(null, mapped);
     });
   },
