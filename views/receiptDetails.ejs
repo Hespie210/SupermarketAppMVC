@@ -31,6 +31,8 @@
               'Completed': 'bg-success',
               'Cancelled': 'bg-secondary',
               'Failed Payment': 'bg-danger',
+              'Refund Requested': 'bg-warning text-dark',
+              'Refund Rejected': 'bg-secondary',
               'Refunded': 'bg-dark'
             };
             const badgeClass = statusClassMap[status || 'Processing'] || 'bg-secondary';
@@ -106,6 +108,17 @@
           <span class="text-muted small">Locked because the account was deleted.</span>
         <% } %>
       </form>
+      <% const isPaypal = (paymentMethod || '').toLowerCase().includes('paypal'); %>
+      <% if (!statusLocked && isPaypal && status === 'Refund Requested') { %>
+        <div class="mt-3 d-flex flex-wrap gap-2">
+          <form action="/admin/orders/<%= orderNumber %>/refund" method="POST">
+            <button class="btn btn-danger">Approve Refund (PayPal)</button>
+          </form>
+          <form action="/admin/orders/<%= orderNumber %>/refund-reject" method="POST">
+            <button class="btn btn-outline-secondary">Reject Refund</button>
+          </form>
+        </div>
+      <% } %>
     <% } %>
 
     <a href="<%= isAdmin ? '/inventory' : '/my-purchases' %>" class="btn btn-secondary mt-3">

@@ -38,7 +38,22 @@
               <td><span class="muted-underline">#<%= p.orderNumber || p.id %></span></td>
               <td><%= p.paymentMethod || 'N/A' %></td>
               <td>
-                <span class="badge <%= p.status === 'Completed' ? 'bg-success' : p.status === 'Processing' ? 'bg-warning text-dark' : 'bg-secondary' %>">
+                <%
+                  const statusClassMap = {
+                    'Processing': 'bg-warning text-dark',
+                    'Packing': 'bg-info text-dark',
+                    'Ready for Pickup': 'bg-primary',
+                    'Out for Delivery': 'bg-info text-dark',
+                    'Completed': 'bg-success',
+                    'Cancelled': 'bg-secondary',
+                    'Failed Payment': 'bg-danger',
+                    'Refund Requested': 'bg-warning text-dark',
+                    'Refund Rejected': 'bg-secondary',
+                    'Refunded': 'bg-dark'
+                  };
+                  const statusBadgeClass = statusClassMap[p.status || 'Processing'] || 'bg-secondary';
+                %>
+                <span class="badge <%= statusBadgeClass %>">
                   <%= p.status || 'Processing' %>
                 </span>
               </td>
@@ -51,6 +66,15 @@
               </td>
               <td>
                 <a class="btn btn-sm btn-outline-primary" href="/my-purchases/<%= p.orderNumber || p.id %>">View</a>
+                <% const isPaypal = (p.paymentMethod || '').toLowerCase().includes('paypal'); %>
+                <% const canRefund = isPaypal && !['Refunded', 'Refund Requested', 'Refund Rejected'].includes(p.status || ''); %>
+                <% if (user && user.role === 'user' && canRefund) { %>
+                  <button
+                    class="btn btn-sm btn-outline-danger ms-2 refund-btn"
+                    data-order-id="<%= p.orderNumber || p.id %>">
+                    Request Refund
+                  </button>
+                <% } %>
               </td>
             </tr>
           <% }); %>
@@ -61,5 +85,36 @@
     <% } %>
 
   </div>
+  <script>
+    (function () {
+      const buttons = Array.from(document.querySelectorAll('.refund-btn'));
+      if (!buttons.length) return;
+
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const orderId = btn.dataset.orderId;
+          btn.disabled = true;
+          fetch(`/my-purchases/${orderId}/refund-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.success) {
+              window.location.reload();
+              return;
+            }
+            throw new Error(data && data.error ? data.error : 'Unable to request refund.');
+          })
+          .catch(err => {
+            alert(err.message || 'Unable to request refund.');
+          })
+          .finally(() => {
+            btn.disabled = false;
+          });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>

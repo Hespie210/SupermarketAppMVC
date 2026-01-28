@@ -2,6 +2,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
 const Order = require('../models/orderModel');
+const paypalService = require('../services/paypal');
 
 const STATUS_VALUES = [
   'Processing',
@@ -11,6 +12,8 @@ const STATUS_VALUES = [
   'Completed',
   'Cancelled',
   'Failed Payment',
+  'Refund Requested',
+  'Refund Rejected',
   'Refunded'
 ];
 
@@ -72,6 +75,50 @@ const adminController = {
       if (orderInfo.userRole === 'deleted') {
         req.flash('error', 'Status is locked because this account was deleted.');
         return res.redirect('/admin/dashboard');
+      }
+
+      if (newStatus === 'Refunded') {
+        if (orderInfo.status !== 'Refund Requested') {
+          req.flash('error', 'Refund can only be processed after a user requests it.');
+          return res.redirect('/admin/dashboard');
+        }
+        if (!orderInfo.paymentMethod || !orderInfo.paymentMethod.toLowerCase().includes('paypal')) {
+          req.flash('error', 'Refunds are only supported for PayPal orders.');
+          return res.redirect('/admin/dashboard');
+        }
+        if (!orderInfo.paymentRef) {
+          req.flash('error', 'Missing PayPal capture reference for this order.');
+          return res.redirect('/admin/dashboard');
+        }
+
+        const totalAmount = Number(orderInfo.total || 0);
+        return paypalService.refundCapture(
+          orderInfo.paymentRef,
+          totalAmount > 0 ? totalAmount.toFixed(2) : null
+        ).then(refund => {
+          if (refund && refund.message) {
+            req.flash('error', refund.message);
+            return res.redirect('/admin/dashboard');
+          }
+          Order.updateStatus(orderId, 'Refunded', (errUpdate) => {
+            if (errUpdate) {
+              console.error('Error updating refund status:', errUpdate);
+              req.flash('error', 'Failed to update status.');
+              return res.redirect('/admin/dashboard');
+            }
+            Order.updatePaymentMeta(orderId, { refundRef: refund && refund.id ? refund.id : null }, (metaErr) => {
+              if (metaErr) {
+                console.error('Error saving refund ref:', metaErr);
+              }
+            });
+            req.flash('success', 'Refund completed.');
+            return res.redirect('/admin/dashboard');
+          });
+        }).catch(err => {
+          console.error('PayPal refund error:', err.message);
+          req.flash('error', 'PayPal refund failed.');
+          return res.redirect('/admin/dashboard');
+        });
       }
 
       Order.updateStatus(orderId, newStatus, (err) => {
@@ -236,6 +283,7 @@ const adminController = {
       const totalItems = items.reduce((sum, item) => sum + Number(item.quantity), 0);
 
       // Reuse same view as user
+      const paymentMethod = items[0].paymentMethod || 'N/A';
       res.render('receiptDetails', {
         items,
         totalAmount,
@@ -244,12 +292,101 @@ const adminController = {
         receiptDate: items[0].createdAt,
         orderNumber: orderId,
         invoiceNumber: items[0].invoiceNumber || `INV-${orderId}`,
-        paymentMethod: 'N/A',
+        paymentMethod,
         userInfo: { name: items[0].username, email: items[0].email },
         status: items[0].status || 'Processing',
         isAdmin: true,
         statuses: STATUS_VALUES,
         statusLocked: items[0].userRole === 'deleted'
+      });
+    });
+  },
+
+  refundPaypalOrder: async (req, res) => {
+    const orderId = parseInt(req.params.orderId, 10);
+
+    Order.getOrderWithUser(orderId, async (errOrder, orderInfo) => {
+      if (errOrder || !orderInfo) {
+        req.flash('error', 'Order not found.');
+        return res.redirect('/admin/purchases');
+      }
+
+      if (!orderInfo.paymentMethod || !orderInfo.paymentMethod.toLowerCase().includes('paypal')) {
+        req.flash('error', 'Refunds are only supported for PayPal orders.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+
+      if (!orderInfo.paymentRef) {
+        req.flash('error', 'Missing PayPal capture reference for this order.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+
+      if (orderInfo.status === 'Refunded') {
+        req.flash('error', 'Order is already refunded.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+      if (orderInfo.status !== 'Refund Requested') {
+        req.flash('error', 'Refund can only be processed after a user requests it.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+
+      try {
+        const totalAmount = Number(orderInfo.total || 0);
+        const refund = await paypalService.refundCapture(
+          orderInfo.paymentRef,
+          totalAmount > 0 ? totalAmount.toFixed(2) : null
+        );
+        if (refund && refund.status && refund.status.toLowerCase().includes('pending')) {
+          req.flash('success', 'Refund initiated in PayPal (pending).');
+        } else if (refund && refund.id) {
+          req.flash('success', 'Refund completed.');
+        } else if (refund && refund.message) {
+          req.flash('error', refund.message);
+          return res.redirect(`/admin/purchases/${orderId}`);
+        }
+
+        Order.updateStatus(orderId, 'Refunded', (errUpdate) => {
+          if (errUpdate) {
+            console.error('Error updating refund status:', errUpdate);
+          }
+        });
+        Order.updatePaymentMeta(orderId, { refundRef: refund && refund.id ? refund.id : null }, (metaErr) => {
+          if (metaErr) {
+            console.error('Error saving refund ref:', metaErr);
+          }
+        });
+
+        return res.redirect(`/admin/purchases/${orderId}`);
+      } catch (err) {
+        console.error('PayPal refund error:', err.message);
+        req.flash('error', 'PayPal refund failed.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+    });
+  },
+
+  rejectRefundRequest: (req, res) => {
+    const orderId = parseInt(req.params.orderId, 10);
+
+    Order.getOrderWithUser(orderId, (errOrder, orderInfo) => {
+      if (errOrder || !orderInfo) {
+        req.flash('error', 'Order not found.');
+        return res.redirect('/admin/purchases');
+      }
+
+      if (orderInfo.status !== 'Refund Requested') {
+        req.flash('error', 'Refund can only be rejected after a user requests it.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+
+      Order.updateStatus(orderId, 'Refund Rejected', (errUpdate) => {
+        if (errUpdate) {
+          console.error('Error rejecting refund:', errUpdate);
+          req.flash('error', 'Failed to reject refund.');
+        } else {
+          req.flash('success', 'Refund request rejected.');
+        }
+        return res.redirect(`/admin/purchases/${orderId}`);
       });
     });
   }

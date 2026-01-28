@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 require('dotenv').config();
 
 const PAYPAL_CLIENT = process.env.PAYPAL_CLIENT_ID;
@@ -53,4 +52,26 @@ async function captureOrder(orderId) {
   return data;
 }
 
-module.exports = { createOrder, captureOrder };
+async function refundCapture(captureId, amount) {
+  const accessToken = await getAccessToken();
+  const body = amount ? {
+    amount: {
+      value: amount,
+      currency_code: 'SGD'
+    }
+  } : {};
+
+  const response = await fetch(`${PAYPAL_API}/v2/payments/captures/${captureId}/refund`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json();
+  console.log('PayPal refund response:', data);
+  return data;
+}
+
+module.exports = { createOrder, captureOrder, refundCapture };

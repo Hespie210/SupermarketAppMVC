@@ -10,6 +10,8 @@ const STATUS_VALUES = [
   'Completed',
   'Cancelled',
   'Failed Payment',
+  'Refund Requested',
+  'Refund Rejected',
   'Refunded'
 ];
 
@@ -27,6 +29,20 @@ const CATEGORY_MAP = [
   { name: 'Beverages', match: ['milk'] },
   { name: 'Bakery', match: ['bread'] }
 ];
+
+// Helper: try primary query, and on missing column errors fall back.
+function queryWithFallback(primarySql, primaryParams, fallbackSql, fallbackParams, callback, postProcess) {
+  db.query(primarySql, primaryParams, (err, results) => {
+    if (err && err.code === 'ER_BAD_FIELD_ERROR' && fallbackSql) {
+      return db.query(fallbackSql, fallbackParams, (err2, results2) => {
+        if (postProcess && !err2) return postProcess(null, results2, callback);
+        return callback(err2, results2);
+      });
+    }
+    if (postProcess && !err) return postProcess(null, results, callback);
+    return callback(err, results);
+  });
+}
 
 function detectCategory(productName = '') {
   const lower = (productName || '').toLowerCase();
@@ -152,6 +168,7 @@ const Order = {
         o.invoiceNumber,
         o.total,
         o.tax,
+        o.paymentMethod,
         SUM(oi.quantity) AS totalQuantity,
         SUM(oi.quantity * oi.price) AS totalAmount
       FROM orders o
@@ -160,12 +177,55 @@ const Order = {
       GROUP BY o.id, o.userId, o.createdAt, o.status
       ORDER BY o.createdAt DESC
     `;
-    db.query(sql, [userId], callback);
+    const fallbackSql = `
+      SELECT
+        o.id,
+        o.userId,
+        o.createdAt,
+        o.status,
+        o.invoiceNumber,
+        o.total,
+        o.tax,
+        SUM(oi.quantity) AS totalQuantity,
+        SUM(oi.quantity * oi.price) AS totalAmount
+      FROM orders o
+      JOIN order_items oi ON oi.orderId = o.id
+      WHERE o.userId = ?
+      GROUP BY o.id, o.userId, o.createdAt, o.status
+      ORDER BY o.createdAt DESC
+    `;
+    queryWithFallback(sql, [userId], fallbackSql, [userId], callback);
   },
 
   // User: order details
   getOrderDetailsByUser: (userId, orderId, callback) => {
     const sql = `
+      SELECT
+        o.id AS orderId,
+        o.userId,
+        o.createdAt,
+        o.status,
+        o.invoiceNumber,
+        o.total,
+        o.tax,
+        o.paymentMethod,
+        o.paymentRef,
+        u.username,
+        u.email,
+        oi.productId,
+        oi.quantity,
+        oi.price,
+        (oi.quantity * oi.price) AS subtotal,
+        p.productName,
+        p.image
+      FROM orders o
+      JOIN order_items oi ON oi.orderId = o.id
+      LEFT JOIN products p ON p.id = oi.productId
+      JOIN users u ON u.id = o.userId
+      WHERE o.userId = ? AND o.id = ?
+      ORDER BY oi.id
+    `;
+    const fallbackSql = `
       SELECT
         o.id AS orderId,
         o.userId,
@@ -189,7 +249,7 @@ const Order = {
       WHERE o.userId = ? AND o.id = ?
       ORDER BY oi.id
     `;
-    db.query(sql, [userId, orderId], (err, results) => {
+    queryWithFallback(sql, [userId, orderId], fallbackSql, [userId, orderId], (err, results) => {
       if (err) return callback(err);
       const mapped = (results || []).map(r => {
         const productName = r.productName || 'Deleted product';
@@ -215,6 +275,7 @@ const Order = {
         o.invoiceNumber,
         o.total,
         o.tax,
+        o.paymentMethod,
         SUM(oi.quantity) AS totalQuantity,
         SUM(oi.quantity * oi.price) AS totalAmount,
         u.username,
@@ -226,12 +287,59 @@ const Order = {
       GROUP BY o.id, o.userId, o.createdAt, o.status, u.username, u.email, u.role
       ORDER BY o.createdAt DESC
     `;
-    db.query(sql, callback);
+    const fallbackSql = `
+      SELECT
+        o.id,
+        o.userId,
+        o.createdAt,
+        o.status,
+        o.invoiceNumber,
+        o.total,
+        o.tax,
+        SUM(oi.quantity) AS totalQuantity,
+        SUM(oi.quantity * oi.price) AS totalAmount,
+        u.username,
+        u.email,
+        u.role AS userRole
+      FROM orders o
+      JOIN order_items oi ON oi.orderId = o.id
+      JOIN users u ON u.id = o.userId
+      GROUP BY o.id, o.userId, o.createdAt, o.status, u.username, u.email, u.role
+      ORDER BY o.createdAt DESC
+    `;
+    queryWithFallback(sql, [], fallbackSql, [], callback);
   },
 
   // Admin: order detail with user info
   getOrderDetailsForAdmin: (orderId, callback) => {
     const sql = `
+      SELECT
+        o.id AS orderId,
+        o.userId,
+        o.createdAt,
+        o.status,
+        o.invoiceNumber,
+        o.total,
+        o.tax,
+        o.paymentMethod,
+        o.paymentRef,
+        oi.productId,
+        oi.quantity,
+        oi.price,
+        (oi.quantity * oi.price) AS subtotal,
+        p.productName,
+        p.image,
+        u.username,
+        u.email,
+        u.role AS userRole
+      FROM orders o
+      JOIN order_items oi ON oi.orderId = o.id
+      LEFT JOIN products p ON p.id = oi.productId
+      JOIN users u ON u.id = o.userId
+      WHERE o.id = ?
+      ORDER BY oi.id
+    `;
+    const fallbackSql = `
       SELECT
         o.id AS orderId,
         o.userId,
@@ -256,7 +364,7 @@ const Order = {
       WHERE o.id = ?
       ORDER BY oi.id
     `;
-    db.query(sql, [orderId], (err, results) => {
+    queryWithFallback(sql, [orderId], fallbackSql, [orderId], (err, results) => {
       if (err) return callback(err);
       const mapped = (results || []).map(r => {
         const productName = r.productName || 'Deleted product';
@@ -281,14 +389,38 @@ const Order = {
 
   getOrderWithUser: (orderId, callback) => {
     const sql = `
-      SELECT o.id, o.status, o.userId, u.role AS userRole
+      SELECT o.id, o.status, o.userId, u.role AS userRole, o.paymentMethod, o.paymentRef, o.total
       FROM orders o
       JOIN users u ON u.id = o.userId
       WHERE o.id = ?
     `;
-    db.query(sql, [orderId], (err, results) => {
+    const fallbackSql = `
+      SELECT o.id, o.status, o.userId, u.role AS userRole, o.total
+      FROM orders o
+      JOIN users u ON u.id = o.userId
+      WHERE o.id = ?
+    `;
+    queryWithFallback(sql, [orderId], fallbackSql, [orderId], (err, results) => {
       if (err) return callback(err);
       callback(null, results[0] || null);
+    });
+  },
+
+  updatePaymentMeta: (orderId, meta, callback) => {
+    const paymentMethod = meta?.paymentMethod ?? null;
+    const paymentRef = meta?.paymentRef ?? null;
+    const refundRef = meta?.refundRef ?? null;
+
+    const sql = `
+      UPDATE orders
+      SET paymentMethod = ?, paymentRef = ?, refundRef = ?
+      WHERE id = ?
+    `;
+    db.query(sql, [paymentMethod, paymentRef, refundRef, orderId], (err) => {
+      if (err && err.code === 'ER_BAD_FIELD_ERROR') {
+        return callback(null);
+      }
+      callback(err);
     });
   },
 

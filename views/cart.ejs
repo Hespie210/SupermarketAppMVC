@@ -80,25 +80,260 @@
           </div>
         <% } %>
 
-        <form action="/checkout" method="POST" class="row g-3 align-items-end">
+        <form action="/checkout" method="POST" class="row g-3 align-items-end" id="checkoutForm">
           <div class="col-md-6">
-            <label for="paymentMethod" class="form-label">Payment Method</label>
-            <select id="paymentMethod" name="paymentMethod" class="form-select" required>
-              <option value="">Select...</option>
-              <option value="Credit Card">Credit Card</option>
-              <option value="Debit Card">Debit Card</option>
-              <option value="Cash on Delivery">Cash on Delivery</option>
-              <option value="Mobile Pay">Mobile Pay</option>
-            </select>
+            <label class="form-label">Payment Method</label>
+            <input type="hidden" id="paymentMethod" name="paymentMethod" required>
+            <div class="dropdown w-100">
+              <button
+                class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center gap-2"
+                type="button"
+                id="paymentDropdownButton"
+                data-bs-toggle="dropdown"
+                aria-expanded="false">
+                <span id="paymentDropdownLabel">Select...</span>
+              </button>
+              <ul class="dropdown-menu w-100" aria-labelledby="paymentDropdownButton">
+                <li>
+                  <button class="dropdown-item d-flex align-items-center gap-2" type="button" data-value="PayPal (Sandbox)">
+                    <img src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg" alt="PayPal" width="37" height="23">
+                    <span>PayPal (Sandbox)</span>
+                  </button>
+                </li>
+                <li>
+                  <button class="dropdown-item d-flex align-items-center gap-2" type="button" data-value="Stripe">
+                    <img src="/images/stripe.svg" alt="Stripe" width="37" height="23">
+                    <span>Stripe</span>
+                  </button>
+                </li>
+                <li>
+                  <button class="dropdown-item" type="button" data-value="NETS QR">NETS QR</button>
+                </li>
+                <li>
+                  <button class="dropdown-item" type="button" data-value="Cash on Delivery">Cash on Delivery</button>
+                </li>
+              </ul>
+            </div>
           </div>
 
           <div class="col-md-6 d-flex gap-2 justify-content-end">
-            <button type="submit" class="btn btn-success">Checkout</button>
+            <button type="submit" class="btn btn-success" id="standardCheckoutBtn">Checkout</button>
             <a href="/shopping" class="btn btn-secondary">Continue Shopping</a>
+          </div>
+
+          <div class="col-12 d-none" id="paypalSection">
+            <div class="alert alert-info mb-3">
+              Pay with PayPal Express Checkout or debit/credit card.
+            </div>
+            <div id="paypalError" class="alert alert-danger d-none"></div>
+            <div id="paypal-button-container"></div>
+          </div>
+
+          <div class="col-12 d-none" id="stripeSection">
+            <div class="alert alert-info mb-3">
+              Pay securely using Stripe Checkout.
+            </div>
+            <div id="stripeError" class="alert alert-danger d-none"></div>
+            <button type="button" class="btn btn-outline-dark" id="stripeCheckoutBtn">Pay with Stripe</button>
+          </div>
+
+          <div class="col-12 d-none" id="netsSection">
+            <div class="alert alert-info mb-3">
+              Pay by scanning a NETS QR code in a new tab.
+            </div>
+            <div class="alert alert-warning d-none" id="netsPopupWarning">
+              Your browser blocked the new tab. Please use the button below to open the NETS QR page.
+            </div>
+            <a class="btn btn-outline-primary" id="netsOpenBtn" href="/nets-qr" target="_blank" rel="noopener">Open NETS QR</a>
           </div>
         </form>
       </div>
     <% } %>
   </div>
+
+  <% if (paypalClientId) { %>
+    <script src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=SGD&intent=capture&components=buttons&enable-funding=card" onload="window.__paypalSdkReady = true; if (window.__renderPaypalButtons) window.__renderPaypalButtons();"></script>
+  <% } %>
+  <script>
+    (function () {
+      const paymentSelect = document.getElementById('paymentMethod');
+      const checkoutForm = document.getElementById('checkoutForm');
+      const standardCheckoutBtn = document.getElementById('standardCheckoutBtn');
+      const paypalSection = document.getElementById('paypalSection');
+      const stripeSection = document.getElementById('stripeSection');
+      const stripeCheckoutBtn = document.getElementById('stripeCheckoutBtn');
+      const netsSection = document.getElementById('netsSection');
+      const netsOpenBtn = document.getElementById('netsOpenBtn');
+      const netsPopupWarning = document.getElementById('netsPopupWarning');
+      const paypalError = document.getElementById('paypalError');
+      const stripeError = document.getElementById('stripeError');
+      const totalAmount = Number('<%= total.toFixed(2) %>');
+      let rendered = false;
+      const defaultCheckoutLabel = standardCheckoutBtn.textContent;
+
+      function showPaypalError(message) {
+        paypalError.textContent = message;
+        paypalError.classList.remove('d-none');
+      }
+
+      function clearPaypalError() {
+        paypalError.textContent = '';
+        paypalError.classList.add('d-none');
+      }
+
+      function showStripeError(message) {
+        stripeError.textContent = message;
+        stripeError.classList.remove('d-none');
+      }
+
+      function clearStripeError() {
+        stripeError.textContent = '';
+        stripeError.classList.add('d-none');
+      }
+
+      function renderButtons() {
+        if (rendered || !window.paypal) return;
+        rendered = true;
+
+        window.paypal.Buttons({
+          createOrder: () => {
+            clearPaypalError();
+            return fetch('/paypal/create-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ total: totalAmount.toFixed(2) })
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.id) return data.id;
+              throw new Error(data && data.error ? data.error : 'Unable to start PayPal checkout.');
+            });
+          },
+          onApprove: (data) => {
+            return fetch('/paypal/capture-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderId: data.orderID })
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.success && data.orderId) {
+                window.location.href = `/invoice/${data.orderId}`;
+                return;
+              }
+              throw new Error(data && data.error ? data.error : 'PayPal capture failed.');
+            })
+            .catch(err => {
+              showPaypalError(err.message || 'PayPal capture failed.');
+            });
+          },
+          onError: (err) => {
+            console.error('PayPal error:', err);
+            showPaypalError('PayPal checkout failed. Please try again.');
+          }
+        }).render('#paypal-button-container');
+      }
+
+      window.__renderPaypalButtons = renderButtons;
+
+      const dropdownLabel = document.getElementById('paymentDropdownLabel');
+      const dropdownItems = Array.from(document.querySelectorAll('.dropdown-item[data-value]'));
+
+      function setPaymentMethod(value, labelHtml) {
+        paymentSelect.value = value;
+        dropdownLabel.innerHTML = labelHtml || value;
+        updatePaymentUi();
+      }
+
+      function updatePaymentUi() {
+        const isPaypal = paymentSelect.value === 'PayPal (Sandbox)';
+        const isStripe = paymentSelect.value === 'Stripe';
+        const isNets = paymentSelect.value === 'NETS QR';
+        if (isPaypal) {
+          paypalSection.classList.remove('d-none');
+          stripeSection.classList.add('d-none');
+          netsSection.classList.add('d-none');
+          standardCheckoutBtn.disabled = true;
+          standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          renderButtons();
+          clearStripeError();
+        } else if (isStripe) {
+          paypalSection.classList.add('d-none');
+          stripeSection.classList.remove('d-none');
+          netsSection.classList.add('d-none');
+          standardCheckoutBtn.disabled = true;
+          standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          clearPaypalError();
+        } else if (isNets) {
+          paypalSection.classList.add('d-none');
+          stripeSection.classList.add('d-none');
+          netsSection.classList.remove('d-none');
+          standardCheckoutBtn.disabled = false;
+          standardCheckoutBtn.textContent = 'Checkout with NETS QR';
+          clearPaypalError();
+          clearStripeError();
+        } else {
+          paypalSection.classList.add('d-none');
+          stripeSection.classList.add('d-none');
+          netsSection.classList.add('d-none');
+          standardCheckoutBtn.disabled = false;
+          standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          clearPaypalError();
+          clearStripeError();
+        }
+        if (netsPopupWarning) {
+          netsPopupWarning.classList.add('d-none');
+        }
+      }
+
+      dropdownItems.forEach(item => {
+        item.addEventListener('click', () => {
+          setPaymentMethod(item.dataset.value, item.innerHTML);
+        });
+      });
+
+      checkoutForm.addEventListener('submit', (event) => {
+        if (paymentSelect.value === 'Stripe') {
+          event.preventDefault();
+          return;
+        }
+        if (paymentSelect.value !== 'NETS QR') return;
+        event.preventDefault();
+        const win = window.open('/nets-qr', '_blank', 'noopener');
+        if (!win && netsPopupWarning) {
+          netsPopupWarning.classList.remove('d-none');
+          netsOpenBtn.focus();
+        }
+      });
+
+      if (stripeCheckoutBtn) {
+        stripeCheckoutBtn.addEventListener('click', () => {
+          clearStripeError();
+          stripeCheckoutBtn.disabled = true;
+          stripeCheckoutBtn.textContent = 'Redirecting...';
+          fetch('/stripe/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ total: totalAmount.toFixed(2) })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.url) {
+              window.location.href = data.url;
+              return;
+            }
+            throw new Error(data && data.error ? data.error : 'Unable to start Stripe checkout.');
+          })
+          .catch(err => {
+            showStripeError(err.message || 'Stripe checkout failed.');
+          })
+          .finally(() => {
+            stripeCheckoutBtn.disabled = false;
+            stripeCheckoutBtn.textContent = 'Pay with Stripe';
+          });
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
