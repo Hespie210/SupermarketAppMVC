@@ -157,6 +157,134 @@ const Order = {
     });
   },
 
+  // Create order paid with store credit (atomic: balance + order + items + inventory)
+  createOrderWithStoreCredit: (userId, cart, totals, invoiceNumber, callback) => {
+    if (!cart || !cart.length) return callback(new Error('Cart is empty'));
+
+    const total = Number(totals?.total || 0);
+    const tax = Number(totals?.tax || 0);
+
+    const decrementInventory = (items, done) => {
+      const sql = `
+        UPDATE products
+        SET quantity = quantity - ?
+        WHERE id = ? AND quantity >= ?
+      `;
+
+      const step = (idx) => {
+        if (idx >= items.length) return done();
+        const item = items[idx];
+        db.query(sql, [item.quantity, item.productId, item.quantity], (err, result) => {
+          if (err) return done(err);
+          if (result.affectedRows === 0) {
+            return done(new Error(`Insufficient stock for product ${item.productId}`));
+          }
+          step(idx + 1);
+        });
+      };
+
+      step(0);
+    };
+
+    db.beginTransaction(err => {
+      if (err) return callback(err);
+
+      const creditSql = 'SELECT storeCredit FROM users WHERE id = ? FOR UPDATE';
+      db.query(creditSql, [userId], (creditErr, creditRows) => {
+        if (creditErr && creditErr.code === 'ER_BAD_FIELD_ERROR') {
+          return db.rollback(() => callback(new Error('Store credit is not configured.')));
+        }
+        if (creditErr) return db.rollback(() => callback(creditErr));
+
+        const currentCredit = creditRows && creditRows[0] && creditRows[0].storeCredit != null
+          ? Number(creditRows[0].storeCredit)
+          : 0;
+
+        if (currentCredit < total) {
+          return db.rollback(() => callback(new Error('Insufficient store credit balance.')));
+        }
+
+        const debitSql = 'UPDATE users SET storeCredit = storeCredit - ? WHERE id = ?';
+        db.query(debitSql, [total, userId], (debitErr) => {
+          if (debitErr && debitErr.code === 'ER_BAD_FIELD_ERROR') {
+            return db.rollback(() => callback(new Error('Store credit is not configured.')));
+          }
+          if (debitErr) return db.rollback(() => callback(debitErr));
+
+          const orderSqlFull = `
+            INSERT INTO orders (invoiceNumber, userId, status, total, tax)
+            VALUES (?, ?, ?, ?, ?)
+          `;
+          const orderSqlFallback = `
+            INSERT INTO orders (userId, status)
+            VALUES (?, ?)
+          `;
+
+          const insertOrder = (sql, params, next) => {
+            db.query(sql, params, (errOrder, orderResult) => {
+              if (errOrder) return next(errOrder);
+              next(null, orderResult.insertId);
+            });
+          };
+
+          const itemsSqlFull = `
+            INSERT INTO order_items (orderId, productId, quantity, price, subtotal)
+            VALUES ?
+          `;
+          const itemsSqlFallback = `
+            INSERT INTO order_items (orderId, productId, quantity, price)
+            VALUES ?
+          `;
+
+          const doInsertItems = (orderId, useSubtotal, done) => {
+            const values = cart.map(item => {
+              const base = [orderId, item.productId, item.quantity, item.price];
+              return useSubtotal ? [...base, Number(item.quantity) * Number(item.price)] : base;
+            });
+            const sql = useSubtotal ? itemsSqlFull : itemsSqlFallback;
+            db.query(sql, [values], errItems => {
+              if (errItems) return done(errItems);
+              done(null, orderId);
+            });
+          };
+
+          insertOrder(orderSqlFull, [invoiceNumber, userId, 'Processing', total, tax], (errOrderFull, orderId) => {
+            const fallbackOrder = () => insertOrder(orderSqlFallback, [userId, 'Processing'], (errOrd, ordId) => {
+              if (errOrd) return db.rollback(() => callback(errOrd));
+              doInsertItems(ordId, false, (errItems2) => {
+                if (errItems2) return db.rollback(() => callback(errItems2));
+                decrementInventory(cart, (errStock) => {
+                  if (errStock) return db.rollback(() => callback(errStock));
+                  db.commit(errCommit => callback(errCommit, { orderId: ordId }));
+                });
+              });
+            });
+
+            if (errOrderFull) {
+              if (errOrderFull.code === 'ER_BAD_FIELD_ERROR') {
+                return fallbackOrder();
+              }
+              return db.rollback(() => callback(errOrderFull));
+            }
+
+            doInsertItems(orderId, true, (errItems) => {
+              if (errItems) {
+                if (errItems.code === 'ER_BAD_FIELD_ERROR') {
+                  return fallbackOrder();
+                }
+                return db.rollback(() => callback(errItems));
+              }
+              decrementInventory(cart, (errStock) => {
+                if (errStock) return db.rollback(() => callback(errStock));
+                db.commit(errCommit => callback(errCommit, { orderId }));
+              });
+            });
+          });
+        });
+      });
+    });
+  },
+
   // User: list of orders with totals
   getOrdersByUser: (userId, callback) => {
     const sql = `
@@ -407,16 +535,32 @@ const Order = {
   },
 
   updatePaymentMeta: (orderId, meta, callback) => {
-    const paymentMethod = meta?.paymentMethod ?? null;
-    const paymentRef = meta?.paymentRef ?? null;
-    const refundRef = meta?.refundRef ?? null;
+    if (!meta || typeof meta !== 'object') return callback(null);
+
+    const fields = [];
+    const params = [];
+    if (Object.prototype.hasOwnProperty.call(meta, 'paymentMethod')) {
+      fields.push('paymentMethod = ?');
+      params.push(meta.paymentMethod);
+    }
+    if (Object.prototype.hasOwnProperty.call(meta, 'paymentRef')) {
+      fields.push('paymentRef = ?');
+      params.push(meta.paymentRef);
+    }
+    if (Object.prototype.hasOwnProperty.call(meta, 'refundRef')) {
+      fields.push('refundRef = ?');
+      params.push(meta.refundRef);
+    }
+
+    if (!fields.length) return callback(null);
 
     const sql = `
       UPDATE orders
-      SET paymentMethod = ?, paymentRef = ?, refundRef = ?
+      SET ${fields.join(', ')}
       WHERE id = ?
     `;
-    db.query(sql, [paymentMethod, paymentRef, refundRef, orderId], (err) => {
+    params.push(orderId);
+    db.query(sql, params, (err) => {
       if (err && err.code === 'ER_BAD_FIELD_ERROR') {
         return callback(null);
       }

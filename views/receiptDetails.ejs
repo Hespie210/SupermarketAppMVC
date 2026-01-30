@@ -35,6 +35,9 @@
             } else if (paymentKey.includes('nets')) {
               paymentLabel = 'NETS QR';
               paymentBadgeClass = 'bg-info text-dark';
+            } else if (paymentKey.includes('store credit')) {
+              paymentLabel = 'Store Credit';
+              paymentBadgeClass = 'bg-secondary';
             } else if (paymentKey.includes('cash')) {
               paymentLabel = 'COD';
               paymentBadgeClass = 'bg-secondary';
@@ -135,10 +138,13 @@
       <% const paymentMethodLower = (paymentMethod || '').toLowerCase(); %>
       <% const isPaypal = paymentMethodLower.includes('paypal'); %>
       <% const isStripe = paymentMethodLower.includes('stripe'); %>
-      <% if (!statusLocked && (isPaypal || isStripe) && status === 'Refund Requested') { %>
+      <% const isNets = paymentMethodLower.includes('nets'); %>
+      <% const isStoreCredit = paymentMethodLower.includes('store credit'); %>
+      <% if (!statusLocked && (isPaypal || isStripe || isNets || isStoreCredit) && status === 'Refund Requested') { %>
+        <% const refundLabel = isStripe ? 'Stripe' : isPaypal ? 'PayPal' : isNets ? 'NETS QR' : 'Store Credit'; %>
         <div class="mt-3 d-flex flex-wrap gap-2">
           <form action="/admin/orders/<%= orderNumber %>/refund" method="POST">
-            <button class="btn btn-danger">Approve Refund (<%= isStripe ? 'Stripe' : 'PayPal' %>)</button>
+            <button class="btn btn-danger">Approve Refund (<%= refundLabel %>)</button>
           </form>
           <form action="/admin/orders/<%= orderNumber %>/refund-reject" method="POST">
             <button class="btn btn-outline-secondary">Reject Refund</button>

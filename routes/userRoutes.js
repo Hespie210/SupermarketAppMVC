@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 
 const userController = require('../controllers/userController');
-const { checkAuthenticated } = require('../middleware/authMiddleware');
+const { checkAuthenticated, checkNonAdmin } = require('../middleware/authMiddleware');
 
 // Multer storage for profile pictures
 const storage = multer.diskStorage({
@@ -21,5 +21,8 @@ const upload = multer({ storage });
 
 router.get('/profile', checkAuthenticated, userController.showProfile);
 router.post('/profile/upload-photo', checkAuthenticated, upload.single('profileImage'), userController.uploadProfilePhoto);
+router.get('/store-credit', checkNonAdmin, userController.showStoreCredit);
+router.post('/store-credit/nets-qr', checkNonAdmin, userController.createStoreCreditQr);
+router.get('/store-credit/nets-qr/status', checkNonAdmin, userController.checkStoreCreditStatus);
 
 module.exports = router;

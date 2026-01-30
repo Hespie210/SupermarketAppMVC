@@ -70,6 +70,35 @@ const User = {
     db.query(sql, [username, email, role, id], callback);
   },
 
+  getStoreCredit: (id, callback) => {
+    const sql = 'SELECT storeCredit FROM users WHERE id = ?';
+    db.query(sql, [id], (err, results) => {
+      if (err && err.code === 'ER_BAD_FIELD_ERROR') {
+        return callback(null, 0);
+      }
+      if (err) return callback(err);
+      const credit = results && results[0] && results[0].storeCredit != null
+        ? Number(results[0].storeCredit)
+        : 0;
+      callback(null, credit);
+    });
+  },
+
+  addStoreCredit: (id, amount, callback) => {
+    const value = Number(amount) || 0;
+    const sql = `
+      UPDATE users
+      SET storeCredit = COALESCE(storeCredit, 0) + ?
+      WHERE id = ?
+    `;
+    db.query(sql, [value, id], (err) => {
+      if (err && err.code === 'ER_BAD_FIELD_ERROR') {
+        return callback(new Error('Store credit is not configured.'));
+      }
+      callback(err);
+    });
+  },
+
   getUserCount: (callback) => {
     const sql = `
       SELECT COUNT(*) AS totalUsers

@@ -41,7 +41,11 @@
                      style="width:32px;height:32px;object-fit:cover;">
               <% } %>
             </td>
-            <td><%= u.username %></td>
+            <td>
+              <a href="/admin/users/<%= u.id %>" class="text-dark text-decoration-none">
+                <%= u.username %>
+              </a>
+            </td>
             <td><%= u.email %></td>
             <td>
               <span class="badge <%= u.role === 'admin' ? 'bg-primary' : 'bg-secondary' %> text-uppercase"><%= u.role %></span>

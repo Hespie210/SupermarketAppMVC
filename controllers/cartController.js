@@ -1,6 +1,7 @@
 // controllers/cartController.js
 const Product = require('../models/productModel');
 const Order = require('../models/orderModel');
+const User = require('../models/userModel');
 const paypalService = require('../services/paypal');
 const stripeService = require('../services/stripe');
 
@@ -20,10 +21,25 @@ const cartController = {
       (sum, item) => sum + Number(item.price) * Number(item.quantity),
       0
     );
-    res.render('cart', {
-      cart,
-      total,
-      paypalClientId: process.env.PAYPAL_CLIENT_ID || ''
+    const user = req.session.user;
+    if (!user) {
+      return res.render('cart', {
+        cart,
+        total,
+        storeCredit: 0,
+        paypalClientId: process.env.PAYPAL_CLIENT_ID || ''
+      });
+    }
+    User.getStoreCredit(user.id, (err, storeCredit) => {
+      if (err) {
+        console.error('Error loading store credit:', err);
+      }
+      res.render('cart', {
+        cart,
+        total,
+        storeCredit: err ? 0 : storeCredit,
+        paypalClientId: process.env.PAYPAL_CLIENT_ID || ''
+      });
     });
   },
 
@@ -111,8 +127,11 @@ const cartController = {
       tax: 0
     };
     const invoiceNumber = formatInvoiceNumber(Date.now());
+    const usingStoreCredit = paymentMethod.toLowerCase() === 'store credit';
 
-    Order.createOrder(userId, cart, totals, invoiceNumber, (err, result) => {
+    const createOrder = usingStoreCredit ? Order.createOrderWithStoreCredit : Order.createOrder;
+
+    createOrder(userId, cart, totals, invoiceNumber, (err, result) => {
       if (err) {
         console.error('Error creating order:', err);
         req.flash('error', err.message || 'Error completing purchase');
@@ -417,10 +436,12 @@ const cartController = {
       const methodLower = paymentMethod.toLowerCase();
       const isPaypal = methodLower.includes('paypal');
       const isStripe = methodLower.includes('stripe');
-      if (!paymentMethod || (!isPaypal && !isStripe)) {
-        return res.status(400).json({ error: 'Refunds are only available for PayPal or Stripe orders.' });
+      const isNets = methodLower.includes('nets');
+      const isStoreCredit = methodLower.includes('store credit');
+      if (!paymentMethod || (!isPaypal && !isStripe && !isNets && !isStoreCredit)) {
+        return res.status(400).json({ error: 'Refunds are only available for PayPal, Stripe, NETS QR, or Store Credit orders.' });
       }
-      if (['Refunded', 'Refund Requested', 'Refund Rejected'].includes(orderInfo.status)) {
+      if (['Refunded', 'Refund Requested'].includes(orderInfo.status)) {
         return res.status(400).json({ error: 'Refund already requested or processed.' });
       }
 

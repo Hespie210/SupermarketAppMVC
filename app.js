@@ -4,6 +4,7 @@ const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const flash = require('connect-flash');
+const User = require('./models/userModel');
 
 const app = express();
 
@@ -38,6 +39,24 @@ app.use((req, res, next) => {
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
   next();
+});
+
+// Attach store credit balance for navbar display
+app.use((req, res, next) => {
+  const user = req.session.user;
+  if (!user) {
+    res.locals.storeCredit = 0;
+    return next();
+  }
+  User.getStoreCredit(user.id, (err, credit) => {
+    if (err) {
+      console.error('Error loading store credit for navbar:', err);
+      res.locals.storeCredit = 0;
+    } else {
+      res.locals.storeCredit = credit;
+    }
+    next();
+  });
 });
 
 const indexRoutes = require('./routes/indexRoutes');

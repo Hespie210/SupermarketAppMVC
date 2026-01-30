@@ -2,6 +2,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
 const Order = require('../models/orderModel');
+const StoreCredit = require('../models/storeCreditModel');
 const paypalService = require('../services/paypal');
 const stripeService = require('../services/stripe');
 
@@ -90,8 +91,41 @@ const adminController = {
         const paymentMethod = (orderInfo.paymentMethod || '').toLowerCase();
         const isPaypal = paymentMethod.includes('paypal');
         const isStripe = paymentMethod.includes('stripe');
+        const isNets = paymentMethod.includes('nets');
+        const isStoreCredit = paymentMethod.includes('store credit');
+
+        if (isNets || isStoreCredit) {
+          const totalAmount = Number(orderInfo.total || 0);
+          return User.addStoreCredit(orderInfo.userId, totalAmount, (creditErr) => {
+            if (creditErr) {
+              console.error('Error issuing store credit refund:', creditErr);
+              req.flash('error', creditErr.message || 'Failed to issue store credit refund.');
+              return res.redirect('/admin/dashboard');
+            }
+            StoreCredit.addTransaction(orderInfo.userId, totalAmount, 'refund', orderInfo.id, (historyErr) => {
+              if (historyErr) {
+                console.error('Error saving store credit history:', historyErr);
+              }
+            });
+            Order.updateStatus(orderId, 'Refunded', (errUpdate) => {
+              if (errUpdate) {
+                console.error('Error updating refund status:', errUpdate);
+                req.flash('error', 'Failed to update status.');
+                return res.redirect('/admin/dashboard');
+              }
+              Order.updatePaymentMeta(orderId, { refundRef: 'STORE_CREDIT' }, (metaErr) => {
+                if (metaErr) {
+                  console.error('Error saving refund ref:', metaErr);
+                }
+              });
+              req.flash('success', 'Refund completed as store credit.');
+              return res.redirect('/admin/dashboard');
+            });
+          });
+        }
+
         if (!isPaypal && !isStripe) {
-          req.flash('error', 'Refunds are only supported for PayPal or Stripe orders.');
+          req.flash('error', 'Refunds are only supported for PayPal, Stripe, NETS QR, or Store Credit orders.');
           return res.redirect('/admin/dashboard');
         }
         if (!orderInfo.paymentRef) {
@@ -159,6 +193,21 @@ const adminController = {
         return res.status(500).send('Error loading users');
       }
       res.render('adminUsers', { users: results });
+    });
+  },
+
+  showUserDetails: (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    User.getUserById(id, (err, user) => {
+      if (err) {
+        console.error('Error loading user details:', err);
+        return res.status(500).send('Error loading user');
+      }
+      if (!user) {
+        return res.status(404).send('User not found');
+      }
+      const storeCredit = user.storeCredit != null ? Number(user.storeCredit) : 0;
+      res.render('adminUserDetails', { viewedUser: user, storeCredit });
     });
   },
 
@@ -332,8 +381,50 @@ const adminController = {
       const paymentMethod = (orderInfo.paymentMethod || '').toLowerCase();
       const isPaypal = paymentMethod.includes('paypal');
       const isStripe = paymentMethod.includes('stripe');
+      const isNets = paymentMethod.includes('nets');
+      const isStoreCredit = paymentMethod.includes('store credit');
+
+      if (orderInfo.status === 'Refunded') {
+        req.flash('error', 'Order is already refunded.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+      if (orderInfo.status !== 'Refund Requested') {
+        req.flash('error', 'Refund can only be processed after a user requests it.');
+        return res.redirect(`/admin/purchases/${orderId}`);
+      }
+
+      if (isNets || isStoreCredit) {
+        const totalAmount = Number(orderInfo.total || 0);
+        return User.addStoreCredit(orderInfo.userId, totalAmount, (creditErr) => {
+          if (creditErr) {
+            console.error('Error issuing store credit refund:', creditErr);
+            req.flash('error', creditErr.message || 'Failed to issue store credit refund.');
+            return res.redirect(`/admin/purchases/${orderId}`);
+          }
+          StoreCredit.addTransaction(orderInfo.userId, totalAmount, 'refund', orderInfo.id, (historyErr) => {
+            if (historyErr) {
+              console.error('Error saving store credit history:', historyErr);
+            }
+          });
+
+          Order.updateStatus(orderId, 'Refunded', (errUpdate) => {
+            if (errUpdate) {
+              console.error('Error updating refund status:', errUpdate);
+            }
+          });
+          Order.updatePaymentMeta(orderId, { refundRef: 'STORE_CREDIT' }, (metaErr) => {
+            if (metaErr) {
+              console.error('Error saving refund ref:', metaErr);
+            }
+          });
+
+          req.flash('success', 'Refund completed as store credit.');
+          return res.redirect(`/admin/purchases/${orderId}`);
+        });
+      }
+
       if (!isPaypal && !isStripe) {
-        req.flash('error', 'Refunds are only supported for PayPal or Stripe orders.');
+        req.flash('error', 'Refunds are only supported for PayPal, Stripe, NETS QR, or Store Credit orders.');
         return res.redirect(`/admin/purchases/${orderId}`);
       }
 
@@ -342,15 +433,6 @@ const adminController = {
           ? 'Missing Stripe session reference for this order.'
           : 'Missing PayPal capture reference for this order.'
         );
-        return res.redirect(`/admin/purchases/${orderId}`);
-      }
-
-      if (orderInfo.status === 'Refunded') {
-        req.flash('error', 'Order is already refunded.');
-        return res.redirect(`/admin/purchases/${orderId}`);
-      }
-      if (orderInfo.status !== 'Refund Requested') {
-        req.flash('error', 'Refund can only be processed after a user requests it.');
         return res.redirect(`/admin/purchases/${orderId}`);
       }
 

@@ -108,15 +108,39 @@ const fetchPaymentStatus = async ({ txnRetrievalRef, courseInitId }) => {
 
   const fetch = getFetch();
   const webhookUrl = buildWebhookUrl(txnRetrievalRef, courseInitId);
-  const response = await fetch(webhookUrl, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": process.env.API_KEY,
-      "project-id": process.env.PROJECT_ID,
-    },
-  });
-  const rawText = await response.text();
+  const startedAt = Date.now();
+  let response = null;
+  let rawText = "";
+  try {
+    response = await fetch(webhookUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": process.env.API_KEY,
+        "project-id": process.env.PROJECT_ID,
+      },
+    });
+    rawText = await response.text();
+    if (!response.ok) {
+      console.error("NETS webhook response not ok:", {
+        status: response.status,
+        statusText: response.statusText,
+        url: webhookUrl,
+        ms: Date.now() - startedAt,
+        bodyPreview: rawText ? rawText.slice(0, 200) : ""
+      });
+    }
+  } catch (err) {
+    console.error("NETS webhook fetch error:", {
+      name: err?.name,
+      message: err?.message,
+      code: err?.code,
+      type: err?.type,
+      url: webhookUrl,
+      ms: Date.now() - startedAt
+    });
+    throw err;
+  }
   let payload = null;
   try {
     payload = rawText ? JSON.parse(rawText) : {};

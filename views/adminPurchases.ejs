@@ -88,6 +88,9 @@
             } else if (paymentKey.includes('nets')) {
               paymentLabel = 'NETS QR';
               paymentBadgeClass = 'bg-info text-dark';
+            } else if (paymentKey.includes('store credit')) {
+              paymentLabel = 'Store Credit';
+              paymentBadgeClass = 'bg-secondary';
             } else if (paymentKey.includes('cash')) {
               paymentLabel = 'COD';
               paymentBadgeClass = 'bg-secondary';

@@ -60,7 +60,7 @@
     <div class="section-card mb-3">
       <h5 class="mb-3">Order Status Breakdown</h5>
       <div class="alert alert-info py-2 mb-3">
-        Refunds can be processed for PayPal and Stripe orders after the user requests a refund.
+        Refunds can be processed for PayPal, Stripe, NETS QR, and Store Credit orders after the user requests a refund.
       </div>
       <div class="row g-2">
         <% 
@@ -80,7 +80,8 @@
             paypal: 'bg-primary',
             stripe: 'bg-dark',
             nets: 'bg-info text-dark',
-            cod: 'bg-secondary'
+            cod: 'bg-secondary',
+            store: 'bg-secondary'
           };
         %>
         <% if (statuses && statuses.length) { %>
@@ -149,6 +150,9 @@
                       } else if (paymentKey.includes('nets')) {
                         paymentLabel = 'NETS QR';
                         paymentBadgeClass = paymentClassMap.nets;
+                      } else if (paymentKey.includes('store credit')) {
+                        paymentLabel = 'Store Credit';
+                        paymentBadgeClass = paymentClassMap.store;
                       } else if (paymentKey.includes('cash')) {
                         paymentLabel = 'COD';
                         paymentBadgeClass = paymentClassMap.cod;
