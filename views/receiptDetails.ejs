@@ -21,7 +21,28 @@
           <p class="text-muted mb-0">Customer: <%= userInfo?.name %> (<%= userInfo?.email %>)</p>
         </div>
         <div class="text-end">
-          <p class="mb-1"><strong>Payment:</strong> <%= paymentMethod || 'N/A' %></p>
+          <%
+            const rawPayment = paymentMethod || '';
+            const paymentKey = rawPayment.toLowerCase();
+            let paymentLabel = 'N/A';
+            let paymentBadgeClass = 'bg-secondary';
+            if (paymentKey.includes('paypal')) {
+              paymentLabel = 'PayPal';
+              paymentBadgeClass = 'bg-primary';
+            } else if (paymentKey.includes('stripe')) {
+              paymentLabel = 'Stripe';
+              paymentBadgeClass = 'bg-dark';
+            } else if (paymentKey.includes('nets')) {
+              paymentLabel = 'NETS QR';
+              paymentBadgeClass = 'bg-info text-dark';
+            } else if (paymentKey.includes('cash')) {
+              paymentLabel = 'COD';
+              paymentBadgeClass = 'bg-secondary';
+            } else if (rawPayment) {
+              paymentLabel = rawPayment;
+            }
+          %>
+          <p class="mb-1"><strong>Payment:</strong> <span class="badge <%= paymentBadgeClass %>"><%= paymentLabel %></span></p>
           <% 
             const statusClassMap = {
               'Processing': 'bg-warning text-dark',
@@ -96,23 +117,28 @@
     </div>
 
     <% if (isAdmin && statuses) { %>
+      <% const refundLocked = status === 'Refunded'; %>
       <form action="/admin/orders/<%= orderNumber %>/status" method="POST" class="mt-3 d-flex flex-wrap gap-2 align-items-center">
         <label for="status" class="form-label mb-0">Update Status:</label>
-        <select id="status" name="status" class="form-select" style="max-width:220px;" <%= statusLocked ? 'disabled' : '' %>>
+        <select id="status" name="status" class="form-select" style="max-width:220px;" <%= (statusLocked || refundLocked) ? 'disabled' : '' %>>
           <% statuses.forEach(st => { %>
             <option value="<%= st %>" <%= st === status ? 'selected' : '' %>><%= st %></option>
           <% }); %>
         </select>
-        <button class="btn btn-primary" <%= statusLocked ? 'disabled' : '' %>>Save</button>
+        <button class="btn btn-primary" <%= (statusLocked || refundLocked) ? 'disabled' : '' %>>Save</button>
         <% if (statusLocked) { %>
           <span class="text-muted small">Locked because the account was deleted.</span>
+        <% } else if (refundLocked) { %>
+          <span class="text-muted small">Locked because this order is refunded.</span>
         <% } %>
       </form>
-      <% const isPaypal = (paymentMethod || '').toLowerCase().includes('paypal'); %>
-      <% if (!statusLocked && isPaypal && status === 'Refund Requested') { %>
+      <% const paymentMethodLower = (paymentMethod || '').toLowerCase(); %>
+      <% const isPaypal = paymentMethodLower.includes('paypal'); %>
+      <% const isStripe = paymentMethodLower.includes('stripe'); %>
+      <% if (!statusLocked && (isPaypal || isStripe) && status === 'Refund Requested') { %>
         <div class="mt-3 d-flex flex-wrap gap-2">
           <form action="/admin/orders/<%= orderNumber %>/refund" method="POST">
-            <button class="btn btn-danger">Approve Refund (PayPal)</button>
+            <button class="btn btn-danger">Approve Refund (<%= isStripe ? 'Stripe' : 'PayPal' %>)</button>
           </form>
           <form action="/admin/orders/<%= orderNumber %>/refund-reject" method="POST">
             <button class="btn btn-outline-secondary">Reject Refund</button>

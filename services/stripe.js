@@ -43,12 +43,40 @@ async function createCheckoutSession(cart, baseUrl) {
   return session;
 }
 
-async function retrieveSession(sessionId) {
+async function retrieveSession(sessionId, options = null) {
   const stripe = getStripe();
-  return stripe.checkout.sessions.retrieve(sessionId);
+  return stripe.checkout.sessions.retrieve(sessionId, options || undefined);
+}
+
+async function refundCheckoutSession(sessionId, amount) {
+  const stripe = getStripe();
+  let paymentIntentId = sessionId;
+  if (!paymentIntentId || !paymentIntentId.startsWith('pi_')) {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['payment_intent']
+    });
+    if (!session || !session.payment_intent) {
+      throw new Error('Missing Stripe payment intent');
+    }
+    paymentIntentId = typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent.id;
+  }
+  if (!paymentIntentId) {
+    throw new Error('Missing Stripe payment intent');
+  }
+
+  const refundParams = { payment_intent: paymentIntentId };
+  const numericAmount = Number(amount);
+  if (Number.isFinite(numericAmount) && numericAmount > 0) {
+    refundParams.amount = Math.round(numericAmount * 100);
+  }
+
+  return stripe.refunds.create(refundParams);
 }
 
 module.exports = {
   createCheckoutSession,
-  retrieveSession
+  retrieveSession,
+  refundCheckoutSession
 };

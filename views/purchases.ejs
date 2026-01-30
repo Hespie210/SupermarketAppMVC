@@ -36,7 +36,30 @@
           <% purchases.forEach(function(p) { %>
             <tr>
               <td><span class="muted-underline">#<%= p.orderNumber || p.id %></span></td>
-              <td><%= p.paymentMethod || 'N/A' %></td>
+              <td>
+                <%
+                  const rawPayment = p.paymentMethod || '';
+                  const paymentKey = rawPayment.toLowerCase();
+                  let paymentLabel = 'N/A';
+                  let paymentBadgeClass = 'bg-secondary';
+                  if (paymentKey.includes('paypal')) {
+                    paymentLabel = 'PayPal';
+                    paymentBadgeClass = 'bg-primary';
+                  } else if (paymentKey.includes('stripe')) {
+                    paymentLabel = 'Stripe';
+                    paymentBadgeClass = 'bg-dark';
+                  } else if (paymentKey.includes('nets')) {
+                    paymentLabel = 'NETS QR';
+                    paymentBadgeClass = 'bg-info text-dark';
+                  } else if (paymentKey.includes('cash')) {
+                    paymentLabel = 'COD';
+                    paymentBadgeClass = 'bg-secondary';
+                  } else if (rawPayment) {
+                    paymentLabel = rawPayment;
+                  }
+                %>
+                <span class="badge <%= paymentBadgeClass %>"><%= paymentLabel %></span>
+              </td>
               <td>
                 <%
                   const statusClassMap = {
@@ -66,8 +89,10 @@
               </td>
               <td>
                 <a class="btn btn-sm btn-outline-primary" href="/my-purchases/<%= p.orderNumber || p.id %>">View</a>
-                <% const isPaypal = (p.paymentMethod || '').toLowerCase().includes('paypal'); %>
-                <% const canRefund = isPaypal && !['Refunded', 'Refund Requested', 'Refund Rejected'].includes(p.status || ''); %>
+                <% const paymentMethod = (p.paymentMethod || '').toLowerCase(); %>
+                <% const isPaypal = paymentMethod.includes('paypal'); %>
+                <% const isStripe = paymentMethod.includes('stripe'); %>
+                <% const canRefund = (isPaypal || isStripe) && !['Refunded', 'Refund Requested', 'Refund Rejected'].includes(p.status || ''); %>
                 <% if (user && user.role === 'user' && canRefund) { %>
                   <button
                     class="btn btn-sm btn-outline-danger ms-2 refund-btn"

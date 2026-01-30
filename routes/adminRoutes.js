@@ -7,7 +7,7 @@ const { checkAuthenticated, checkAdmin } = require('../middleware/authMiddleware
 
 router.get('/admin/dashboard', checkAuthenticated, checkAdmin, adminController.showDashboard);
 router.post('/admin/orders/:orderId/status', checkAuthenticated, checkAdmin, adminController.updateOrderStatus);
-router.post('/admin/orders/:orderId/refund', checkAuthenticated, checkAdmin, adminController.refundPaypalOrder);
+router.post('/admin/orders/:orderId/refund', checkAuthenticated, checkAdmin, adminController.refundOrder);
 router.post('/admin/orders/:orderId/refund-reject', checkAuthenticated, checkAdmin, adminController.rejectRefundRequest);
 router.get('/admin/users', checkAuthenticated, checkAdmin, adminController.showUsers);
 router.get('/admin/users/create', checkAuthenticated, checkAdmin, adminController.showCreateUser);

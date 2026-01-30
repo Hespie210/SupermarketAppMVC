@@ -59,6 +59,9 @@
 
     <div class="section-card mb-3">
       <h5 class="mb-3">Order Status Breakdown</h5>
+      <div class="alert alert-info py-2 mb-3">
+        Refunds can be processed for PayPal and Stripe orders after the user requests a refund.
+      </div>
       <div class="row g-2">
         <% 
           const statusClassMap = {
@@ -72,6 +75,12 @@
             'Refund Requested': 'bg-warning text-dark',
             'Refund Rejected': 'bg-secondary',
             'Refunded': 'bg-dark'
+          };
+          const paymentClassMap = {
+            paypal: 'bg-primary',
+            stripe: 'bg-dark',
+            nets: 'bg-info text-dark',
+            cod: 'bg-secondary'
           };
         %>
         <% if (statuses && statuses.length) { %>
@@ -101,6 +110,7 @@
             <tr>
               <th>Order #</th>
               <th>User</th>
+              <th>Payment</th>
               <th>Date</th>
               <th>Items</th>
               <th>Total</th>
@@ -123,6 +133,30 @@
                   <td>
                     <div class="fw-semibold"><%= o.username %></div>
                     <div class="text-muted small"><%= o.email %></div>
+                  </td>
+                  <td>
+                    <%
+                      const rawPayment = o.paymentMethod || '';
+                      const paymentKey = rawPayment.toLowerCase();
+                      let paymentLabel = 'N/A';
+                      let paymentBadgeClass = 'bg-secondary';
+                      if (paymentKey.includes('paypal')) {
+                        paymentLabel = 'PayPal';
+                        paymentBadgeClass = paymentClassMap.paypal;
+                      } else if (paymentKey.includes('stripe')) {
+                        paymentLabel = 'Stripe';
+                        paymentBadgeClass = paymentClassMap.stripe;
+                      } else if (paymentKey.includes('nets')) {
+                        paymentLabel = 'NETS QR';
+                        paymentBadgeClass = paymentClassMap.nets;
+                      } else if (paymentKey.includes('cash')) {
+                        paymentLabel = 'COD';
+                        paymentBadgeClass = paymentClassMap.cod;
+                      } else if (rawPayment) {
+                        paymentLabel = rawPayment;
+                      }
+                    %>
+                    <span class="badge <%= paymentBadgeClass %>"><%= paymentLabel %></span>
                   </td>
                   <td><%= o.createdAt && o.createdAt.toLocaleString ? o.createdAt.toLocaleString() : o.createdAt %></td>
                   <td><%= o.totalQuantity %></td>

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
 const Order = require('../models/orderModel');
 const paypalService = require('../services/paypal');
+const stripeService = require('../services/stripe');
 
 const STATUS_VALUES = [
   'Processing',
@@ -76,26 +77,43 @@ const adminController = {
         req.flash('error', 'Status is locked because this account was deleted.');
         return res.redirect('/admin/dashboard');
       }
+      if (orderInfo.status === 'Refunded') {
+        req.flash('error', 'Status is locked because this order is refunded.');
+        return res.redirect('/admin/dashboard');
+      }
 
       if (newStatus === 'Refunded') {
         if (orderInfo.status !== 'Refund Requested') {
           req.flash('error', 'Refund can only be processed after a user requests it.');
           return res.redirect('/admin/dashboard');
         }
-        if (!orderInfo.paymentMethod || !orderInfo.paymentMethod.toLowerCase().includes('paypal')) {
-          req.flash('error', 'Refunds are only supported for PayPal orders.');
+        const paymentMethod = (orderInfo.paymentMethod || '').toLowerCase();
+        const isPaypal = paymentMethod.includes('paypal');
+        const isStripe = paymentMethod.includes('stripe');
+        if (!isPaypal && !isStripe) {
+          req.flash('error', 'Refunds are only supported for PayPal or Stripe orders.');
           return res.redirect('/admin/dashboard');
         }
         if (!orderInfo.paymentRef) {
-          req.flash('error', 'Missing PayPal capture reference for this order.');
+          req.flash('error', isStripe
+            ? 'Missing Stripe session reference for this order.'
+            : 'Missing PayPal capture reference for this order.'
+          );
           return res.redirect('/admin/dashboard');
         }
 
         const totalAmount = Number(orderInfo.total || 0);
-        return paypalService.refundCapture(
-          orderInfo.paymentRef,
-          totalAmount > 0 ? totalAmount.toFixed(2) : null
-        ).then(refund => {
+        const refundPromise = isStripe
+          ? stripeService.refundCheckoutSession(
+              orderInfo.paymentRef,
+              totalAmount > 0 ? totalAmount : null
+            )
+          : paypalService.refundCapture(
+              orderInfo.paymentRef,
+              totalAmount > 0 ? totalAmount.toFixed(2) : null
+            );
+
+        return refundPromise.then(refund => {
           if (refund && refund.message) {
             req.flash('error', refund.message);
             return res.redirect('/admin/dashboard');
@@ -115,8 +133,8 @@ const adminController = {
             return res.redirect('/admin/dashboard');
           });
         }).catch(err => {
-          console.error('PayPal refund error:', err.message);
-          req.flash('error', 'PayPal refund failed.');
+          console.error(isStripe ? 'Stripe refund error:' : 'PayPal refund error:', err.message);
+          req.flash('error', isStripe ? 'Stripe refund failed.' : 'PayPal refund failed.');
           return res.redirect('/admin/dashboard');
         });
       }
@@ -302,7 +320,7 @@ const adminController = {
     });
   },
 
-  refundPaypalOrder: async (req, res) => {
+  refundOrder: async (req, res) => {
     const orderId = parseInt(req.params.orderId, 10);
 
     Order.getOrderWithUser(orderId, async (errOrder, orderInfo) => {
@@ -311,13 +329,19 @@ const adminController = {
         return res.redirect('/admin/purchases');
       }
 
-      if (!orderInfo.paymentMethod || !orderInfo.paymentMethod.toLowerCase().includes('paypal')) {
-        req.flash('error', 'Refunds are only supported for PayPal orders.');
+      const paymentMethod = (orderInfo.paymentMethod || '').toLowerCase();
+      const isPaypal = paymentMethod.includes('paypal');
+      const isStripe = paymentMethod.includes('stripe');
+      if (!isPaypal && !isStripe) {
+        req.flash('error', 'Refunds are only supported for PayPal or Stripe orders.');
         return res.redirect(`/admin/purchases/${orderId}`);
       }
 
       if (!orderInfo.paymentRef) {
-        req.flash('error', 'Missing PayPal capture reference for this order.');
+        req.flash('error', isStripe
+          ? 'Missing Stripe session reference for this order.'
+          : 'Missing PayPal capture reference for this order.'
+        );
         return res.redirect(`/admin/purchases/${orderId}`);
       }
 
@@ -332,15 +356,30 @@ const adminController = {
 
       try {
         const totalAmount = Number(orderInfo.total || 0);
-        const refund = await paypalService.refundCapture(
-          orderInfo.paymentRef,
-          totalAmount > 0 ? totalAmount.toFixed(2) : null
-        );
-        if (refund && refund.status && refund.status.toLowerCase().includes('pending')) {
-          req.flash('success', 'Refund initiated in PayPal (pending).');
-        } else if (refund && refund.id) {
-          req.flash('success', 'Refund completed.');
-        } else if (refund && refund.message) {
+        let refund = null;
+        if (isStripe) {
+          refund = await stripeService.refundCheckoutSession(
+            orderInfo.paymentRef,
+            totalAmount > 0 ? totalAmount : null
+          );
+          if (refund && refund.status && refund.status.toLowerCase().includes('pending')) {
+            req.flash('success', 'Refund initiated in Stripe (pending).');
+          } else if (refund && refund.id) {
+            req.flash('success', 'Refund completed.');
+          }
+        } else {
+          refund = await paypalService.refundCapture(
+            orderInfo.paymentRef,
+            totalAmount > 0 ? totalAmount.toFixed(2) : null
+          );
+          if (refund && refund.status && refund.status.toLowerCase().includes('pending')) {
+            req.flash('success', 'Refund initiated in PayPal (pending).');
+          } else if (refund && refund.id) {
+            req.flash('success', 'Refund completed.');
+          }
+        }
+
+        if (refund && refund.message) {
           req.flash('error', refund.message);
           return res.redirect(`/admin/purchases/${orderId}`);
         }
@@ -358,8 +397,8 @@ const adminController = {
 
         return res.redirect(`/admin/purchases/${orderId}`);
       } catch (err) {
-        console.error('PayPal refund error:', err.message);
-        req.flash('error', 'PayPal refund failed.');
+        console.error(isStripe ? 'Stripe refund error:' : 'PayPal refund error:', err.message);
+        req.flash('error', isStripe ? 'Stripe refund failed.' : 'PayPal refund failed.');
         return res.redirect(`/admin/purchases/${orderId}`);
       }
     });

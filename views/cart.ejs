@@ -117,7 +117,7 @@
           </div>
 
           <div class="col-md-6 d-flex gap-2 justify-content-end">
-            <button type="submit" class="btn btn-success" id="standardCheckoutBtn">Checkout</button>
+            <button type="submit" class="btn btn-outline-primary d-none" id="altCheckoutBtn">Checkout</button>
             <a href="/shopping" class="btn btn-secondary">Continue Shopping</a>
           </div>
 
@@ -159,6 +159,7 @@
       const paymentSelect = document.getElementById('paymentMethod');
       const checkoutForm = document.getElementById('checkoutForm');
       const standardCheckoutBtn = document.getElementById('standardCheckoutBtn');
+      const altCheckoutBtn = document.getElementById('altCheckoutBtn');
       const paypalSection = document.getElementById('paypalSection');
       const stripeSection = document.getElementById('stripeSection');
       const stripeCheckoutBtn = document.getElementById('stripeCheckoutBtn');
@@ -169,7 +170,7 @@
       const stripeError = document.getElementById('stripeError');
       const totalAmount = Number('<%= total.toFixed(2) %>');
       let rendered = false;
-      const defaultCheckoutLabel = standardCheckoutBtn.textContent;
+      const defaultCheckoutLabel = standardCheckoutBtn ? standardCheckoutBtn.textContent : 'Checkout';
 
       function showPaypalError(message) {
         paypalError.textContent = message;
@@ -249,35 +250,69 @@
         const isPaypal = paymentSelect.value === 'PayPal (Sandbox)';
         const isStripe = paymentSelect.value === 'Stripe';
         const isNets = paymentSelect.value === 'NETS QR';
+        const isCash = paymentSelect.value === 'Cash on Delivery';
         if (isPaypal) {
           paypalSection.classList.remove('d-none');
           stripeSection.classList.add('d-none');
           netsSection.classList.add('d-none');
-          standardCheckoutBtn.disabled = true;
-          standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          if (altCheckoutBtn) {
+            altCheckoutBtn.classList.add('d-none');
+          }
+          if (standardCheckoutBtn) {
+            standardCheckoutBtn.disabled = true;
+            standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          }
           renderButtons();
           clearStripeError();
         } else if (isStripe) {
           paypalSection.classList.add('d-none');
           stripeSection.classList.remove('d-none');
           netsSection.classList.add('d-none');
-          standardCheckoutBtn.disabled = true;
-          standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          if (altCheckoutBtn) {
+            altCheckoutBtn.classList.add('d-none');
+          }
+          if (standardCheckoutBtn) {
+            standardCheckoutBtn.disabled = true;
+            standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          }
           clearPaypalError();
         } else if (isNets) {
           paypalSection.classList.add('d-none');
           stripeSection.classList.add('d-none');
           netsSection.classList.remove('d-none');
-          standardCheckoutBtn.disabled = false;
-          standardCheckoutBtn.textContent = 'Checkout with NETS QR';
+          if (altCheckoutBtn) {
+            altCheckoutBtn.classList.remove('d-none');
+            altCheckoutBtn.textContent = 'Checkout with NETS QR';
+          }
+          if (standardCheckoutBtn) {
+            standardCheckoutBtn.disabled = false;
+            standardCheckoutBtn.textContent = 'Checkout with NETS QR';
+          }
           clearPaypalError();
           clearStripeError();
+        } else if (isCash) {
+          paypalSection.classList.add('d-none');
+          stripeSection.classList.add('d-none');
+          netsSection.classList.add('d-none');
+          if (altCheckoutBtn) {
+            altCheckoutBtn.classList.remove('d-none');
+            altCheckoutBtn.textContent = 'Checkout (Cash on Delivery)';
+          }
+          if (standardCheckoutBtn) {
+            standardCheckoutBtn.disabled = false;
+            standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          }
         } else {
           paypalSection.classList.add('d-none');
           stripeSection.classList.add('d-none');
           netsSection.classList.add('d-none');
-          standardCheckoutBtn.disabled = false;
-          standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          if (altCheckoutBtn) {
+            altCheckoutBtn.classList.add('d-none');
+          }
+          if (standardCheckoutBtn) {
+            standardCheckoutBtn.disabled = false;
+            standardCheckoutBtn.textContent = defaultCheckoutLabel;
+          }
           clearPaypalError();
           clearStripeError();
         }

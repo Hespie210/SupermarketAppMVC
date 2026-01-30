@@ -339,7 +339,9 @@ const cartController = {
     }
 
     try {
-      const session = await stripeService.retrieveSession(sessionId);
+      const session = await stripeService.retrieveSession(sessionId, {
+        expand: ['payment_intent']
+      });
       if (!session || session.payment_status !== 'paid') {
         req.flash('error', 'Stripe payment not completed.');
         return res.redirect('/cart');
@@ -357,6 +359,9 @@ const cartController = {
       };
       const invoiceNumber = formatInvoiceNumber(Date.now());
       const paymentMethod = 'Stripe';
+      const paymentIntentId = session.payment_intent
+        ? (typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id)
+        : sessionId;
 
       Order.createOrder(userId, cart, totals, invoiceNumber, (err, result) => {
         if (err) {
@@ -368,8 +373,8 @@ const cartController = {
         const orderId = result.orderId;
         req.session.lastPaymentMethod = paymentMethod;
         if (!req.session.orderMeta) req.session.orderMeta = {};
-        req.session.orderMeta[orderId] = { paymentMethod, paymentRef: sessionId };
-        Order.updatePaymentMeta(orderId, { paymentMethod, paymentRef: sessionId }, (metaErr) => {
+        req.session.orderMeta[orderId] = { paymentMethod, paymentRef: paymentIntentId };
+        Order.updatePaymentMeta(orderId, { paymentMethod, paymentRef: paymentIntentId }, (metaErr) => {
           if (metaErr) {
             console.error('Error saving Stripe payment ref:', metaErr);
           }
@@ -409,8 +414,11 @@ const cartController = {
       }
       const meta = req.session.orderMeta || {};
       const paymentMethod = orderInfo.paymentMethod || meta[orderId]?.paymentMethod || '';
-      if (!paymentMethod || !paymentMethod.toLowerCase().includes('paypal')) {
-        return res.status(400).json({ error: 'Refunds are only available for PayPal orders.' });
+      const methodLower = paymentMethod.toLowerCase();
+      const isPaypal = methodLower.includes('paypal');
+      const isStripe = methodLower.includes('stripe');
+      if (!paymentMethod || (!isPaypal && !isStripe)) {
+        return res.status(400).json({ error: 'Refunds are only available for PayPal or Stripe orders.' });
       }
       if (['Refunded', 'Refund Requested', 'Refund Rejected'].includes(orderInfo.status)) {
         return res.status(400).json({ error: 'Refund already requested or processed.' });

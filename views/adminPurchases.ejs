@@ -45,6 +45,7 @@
       <th>User</th>
       <th>Email</th>
       <th>Date/Time</th>
+      <th>Payment</th>
       <th>Items</th>
       <th>Total</th>
       <th>Status</th>
@@ -72,6 +73,30 @@
                 : p.createdAt %>
         </td>
         <td><%= p.totalQuantity %></td>
+        <td>
+          <%
+            const rawPayment = p.paymentMethod || '';
+            const paymentKey = rawPayment.toLowerCase();
+            let paymentLabel = 'N/A';
+            let paymentBadgeClass = 'bg-secondary';
+            if (paymentKey.includes('paypal')) {
+              paymentLabel = 'PayPal';
+              paymentBadgeClass = 'bg-primary';
+            } else if (paymentKey.includes('stripe')) {
+              paymentLabel = 'Stripe';
+              paymentBadgeClass = 'bg-dark';
+            } else if (paymentKey.includes('nets')) {
+              paymentLabel = 'NETS QR';
+              paymentBadgeClass = 'bg-info text-dark';
+            } else if (paymentKey.includes('cash')) {
+              paymentLabel = 'COD';
+              paymentBadgeClass = 'bg-secondary';
+            } else if (rawPayment) {
+              paymentLabel = rawPayment;
+            }
+          %>
+          <span class="badge <%= paymentBadgeClass %>"><%= paymentLabel %></span>
+        </td>
         <td>$<%= Number(p.totalAmount).toFixed(2) %></td>
         <td>
           <span class="badge <%= statusClass %>">
