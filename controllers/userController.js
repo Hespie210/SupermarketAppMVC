@@ -1,8 +1,10 @@
 // controllers/userController.js
+// User profile and store-credit top-up flows.
 const User = require('../models/userModel');
 const StoreCredit = require('../models/storeCreditModel');
 const netsService = require('../services/nets');
 
+// Map NETS response codes to display messages.
 function getResponseCodeMessage(code) {
   const messages = {
     '09': 'Request in progress.',
@@ -19,6 +21,7 @@ function isHardFailureCode(code) {
 }
 
 const userController = {
+  // Internal helper: load recent store credit history.
   _loadStoreCreditHistory: (userId, callback) => {
     StoreCredit.getHistoryByUser(userId, 10, (err, history) => {
       if (err) {
@@ -29,6 +32,7 @@ const userController = {
     });
   },
 
+  // Show profile page with latest DB data.
   showProfile: (req, res) => {
     const userId = req.session.user.id;
 
@@ -55,6 +59,7 @@ const userController = {
     });
   },
 
+  // Handle profile photo upload and update session.
   uploadProfilePhoto: (req, res) => {
     if (!req.file) {
       return res.status(400).send('No file uploaded');
@@ -76,6 +81,7 @@ const userController = {
     });
   },
 
+  // Show store credit balance + history + top-up form.
   showStoreCredit: (req, res) => {
     const userId = req.session.user.id;
 
@@ -104,6 +110,7 @@ const userController = {
     });
   },
 
+  // Create a NETS QR code for store credit top-up.
   createStoreCreditQr: async (req, res) => {
     const userId = req.session.user.id;
     const rawAmount = (req.body.amount || '').toString().trim();
@@ -219,6 +226,7 @@ const userController = {
     }
   },
 
+  // Poll NETS status and apply store credit if paid.
   checkStoreCreditStatus: async (req, res) => {
     const user = req.session.user;
     const netsTopup = req.session.netsTopup || {};

@@ -1,4 +1,5 @@
 // routes/cartRoutes.js
+// Cart, checkout, and payment routes for users.
 const express = require('express');
 const router = express.Router();
 

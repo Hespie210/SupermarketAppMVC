@@ -1,10 +1,12 @@
 // controllers/cartController.js
+// Cart, checkout, payment, and receipt routes for regular users.
 const Product = require('../models/productModel');
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
 const paypalService = require('../services/paypal');
 const stripeService = require('../services/stripe');
 
+// Generate a readable invoice number.
 function formatInvoiceNumber(id) {
   const now = new Date();
   const y = now.getFullYear();
@@ -14,7 +16,7 @@ function formatInvoiceNumber(id) {
 }
 
 const cartController = {
-  // Show cart
+  // Show cart page with totals and payment options.
   showCart: (req, res) => {
     const cart = req.session.cart || [];
     const total = cart.reduce(
@@ -43,7 +45,7 @@ const cartController = {
     });
   },
 
-  // Add product to cart
+  // Add product to cart (merge quantities if already present).
   addToCart: (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const quantity = parseInt(req.body.quantity, 10) || 1;
@@ -76,7 +78,7 @@ const cartController = {
     });
   },
 
-  // Remove item from cart
+  // Remove item from cart.
   removeFromCart: (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const cart = req.session.cart || [];
@@ -85,7 +87,7 @@ const cartController = {
     res.redirect('/cart');
   },
 
-  // Update quantity for a cart item
+  // Update quantity for a cart item.
   updateItemQuantity: (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const quantity = Math.max(1, parseInt(req.body.quantity, 10) || 1);
@@ -98,13 +100,13 @@ const cartController = {
     res.redirect('/cart');
   },
 
-  // Clear entire cart
+  // Clear entire cart.
   clearCart: (req, res) => {
     req.session.cart = [];
     res.redirect('/cart');
   },
 
-  // Checkout: save order + items + clear cart
+  // Checkout: create order + items + clear cart (supports store credit).
   checkout: (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
@@ -155,7 +157,7 @@ const cartController = {
     });
   },
 
-  // Summary: one row per checkout for this user
+  // Summary: one row per checkout for this user.
   showPurchases: (req, res) => {
     const userId = req.session.user.id;
 
@@ -176,7 +178,7 @@ const cartController = {
     });
   },
 
-  // Detailed receipt view for ONE checkout (current user)
+  // Detailed receipt view for one checkout (current user).
   showReceiptDetails: (req, res) => {
     const userId = req.session.user.id;
     const orderId = parseInt(req.params.orderId, 10);
@@ -214,7 +216,7 @@ const cartController = {
     });
   },
 
-  // PayPal: create order
+  // PayPal: create order.
   createPaypalOrder: async (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
@@ -243,7 +245,7 @@ const cartController = {
     }
   },
 
-  // PayPal: capture order + finalize local order
+  // PayPal: capture order + finalize local order.
   capturePaypalOrder: async (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
@@ -307,7 +309,7 @@ const cartController = {
     }
   },
 
-  // Stripe: create checkout session
+  // Stripe: create checkout session.
   createStripeCheckoutSession: async (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
@@ -338,7 +340,7 @@ const cartController = {
     }
   },
 
-  // Stripe: success redirect
+  // Stripe: success redirect (verify payment, create order).
   stripeSuccess: async (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
@@ -410,12 +412,13 @@ const cartController = {
     }
   },
 
-  // Stripe: cancel redirect
+  // Stripe: cancel redirect.
   stripeCancel: (req, res) => {
     req.flash('error', 'Stripe checkout cancelled.');
     return res.redirect('/cart');
   },
 
+  // User: request refund for eligible payment methods.
   requestRefund: (req, res) => {
     const user = req.session.user;
     const orderId = parseInt(req.params.orderId, 10);

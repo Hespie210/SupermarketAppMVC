@@ -12,12 +12,12 @@
   <!-- Navbar -->
     <%- include('partials/header') %>
 
-
   <!-- Main content -->
   <div class="container mt-4">
     <h2 class="text-center mb-4">Update Product</h2>
     
     <% if (product) { %>
+      <!-- Edit product form -->
       <form action="/updateProduct/<%= product.id %>" method="POST" enctype="multipart/form-data" class="mx-auto" style="max-width: 500px;">
         
         <div class="mb-3">

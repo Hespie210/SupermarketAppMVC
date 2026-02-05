@@ -1,4 +1,5 @@
 // routes/adminRoutes.js
+// Admin-only routes for dashboard, orders, users, and receipts.
 const express = require('express');
 const router = express.Router();
 

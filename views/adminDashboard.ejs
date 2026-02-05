@@ -11,6 +11,7 @@
   <%- include('partials/header') %>
 
   <div class="container py-4">
+    <!-- Flash messages -->
     <% if (success && success.length) { %>
       <div class="alert alert-success">
         <% success.forEach(msg => { %><p class="mb-0"><%= msg %></p><% }); %>
@@ -22,6 +23,7 @@
       </div>
     <% } %>
 
+    <!-- Dashboard header + quick links -->
     <div class="page-hero mb-4">
       <div class="d-flex flex-wrap justify-content-between align-items-center">
         <div>
@@ -36,6 +38,7 @@
       </div>
     </div>
 
+    <!-- KPI cards -->
     <div class="row g-3 mb-4">
       <div class="col-md-4">
         <div class="section-card h-100">
@@ -57,6 +60,7 @@
       </div>
     </div>
 
+    <!-- Status breakdown -->
     <div class="section-card mb-3">
       <h5 class="mb-3">Order Status Breakdown</h5>
       <div class="alert alert-info py-2 mb-3">
@@ -101,6 +105,7 @@
       </div>
     </div>
 
+    <!-- Recent orders table -->
     <div class="section-card">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Recent Orders</h5>

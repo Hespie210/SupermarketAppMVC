@@ -1,7 +1,9 @@
 // controllers/netsController.js
+// NETS QR checkout flow: show QR, poll status, create order on success.
 const Order = require('../models/orderModel');
 const netsService = require('../services/nets');
 
+// Format invoice like INV-YYYYMMDD-<id>.
 function formatInvoiceNumber(id) {
   const now = new Date();
   const y = now.getFullYear();
@@ -10,10 +12,12 @@ function formatInvoiceNumber(id) {
   return `INV-${y}${m}${d}-${id}`;
 }
 
+// Compute cart total.
 function getCartTotal(cart) {
   return cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
 }
 
+// Map NETS response codes to display messages.
 function getResponseCodeMessage(code) {
   const messages = {
     '09': 'Request in progress.',
@@ -30,6 +34,7 @@ function isHardFailureCode(code) {
 }
 
 const netsController = {
+  // Start NETS QR payment and render QR page.
   showNetsQr: async (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];
@@ -98,6 +103,7 @@ const netsController = {
     }
   },
 
+  // Poll NETS status and, if paid, create the order.
   checkNetsStatus: async (req, res) => {
     const user = req.session.user;
     const cart = req.session.cart || [];

@@ -1,6 +1,8 @@
 // controllers/productController.js
+// Route handlers for product browsing, inventory management, and CRUD actions.
 const Product = require('../models/productModel');
 
+// Simple keyword-based category tagging for UI filters.
 const CATEGORY_MAP = [
   { name: 'Fruits', match: ['apple', 'apples', 'banana', 'bananas'] },
   { name: 'Vegetables', match: ['broccoli', 'tomato', 'tomatoes'] },
@@ -8,6 +10,7 @@ const CATEGORY_MAP = [
   { name: 'Bakery', match: ['bread'] }
 ];
 
+// Determine category from a product name; falls back to "Other".
 function detectCategory(productName = '') {
   const lower = productName.toLowerCase();
   for (const group of CATEGORY_MAP) {
@@ -17,6 +20,7 @@ function detectCategory(productName = '') {
 }
 
 const productController = {
+// Public shopping page (active products + category filter + optional search).
 showShopping: (req, res) => {
   const search = (req.query.search || '').trim();
   const category = (req.query.category || 'All');
@@ -44,7 +48,7 @@ showShopping: (req, res) => {
   }
 },
 
-
+  // Admin inventory list (all products + optional search).
   showInventory: (req, res) => {
     const search = (req.query.search || '').trim();
 
@@ -60,6 +64,7 @@ showShopping: (req, res) => {
     }
   },
 
+  // Product detail page (single product by id).
   showProductDetails: (req, res) => {
     const id = req.params.id;
     Product.getProductById(id, (err, product) => {
@@ -69,11 +74,13 @@ showShopping: (req, res) => {
     });
   },
 
+  // Render "add product" form.
   showAddProduct: (req, res) => {
     res.render('addProduct');
   },
 
   // ---------- ADD PRODUCT ----------
+  // Handle create product form submission (with optional image upload).
   addProduct: (req, res) => {
     const { name, quantity, price } = req.body;
     const image = req.file ? req.file.filename : null;
@@ -94,6 +101,7 @@ showShopping: (req, res) => {
     });
   },
 
+  // Render "update product" form with existing data.
   showUpdateProduct: (req, res) => {
     const id = req.params.id;
     Product.getProductById(id, (err, product) => {
@@ -104,6 +112,7 @@ showShopping: (req, res) => {
   },
 
   // ---------- UPDATE PRODUCT ----------
+  // Handle update product form submission (keeps existing image if not replaced).
   updateProduct: (req, res) => {
     const id = req.params.id;
     const { name, quantity, price, currentImage } = req.body;
@@ -130,6 +139,7 @@ showShopping: (req, res) => {
   },
 
   // ---------- DELETE PRODUCT ----------
+  // Delete product and related purchase records.
   deleteProduct: (req, res) => {
     const id = req.params.id;
 
@@ -143,6 +153,7 @@ showShopping: (req, res) => {
   },
 
   // ---------- UPDATE QUANTITY ONLY ----------
+  // Quick inventory quantity update (used in inventory list).
   updateQuantity: (req, res) => {
     const id = req.params.id;
     const quantity = parseInt(req.body.quantity, 10);

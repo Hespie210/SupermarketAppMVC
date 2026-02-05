@@ -15,10 +15,12 @@
     <hr>
 
     <% if (!purchases || purchases.length === 0) { %>
+      <!-- Empty purchases state -->
       <p>You have not bought anything yet.</p>
       <a href="/shopping" class="btn btn-primary">Go Shopping</a>
     <% } else { %>
 
+      <!-- Purchase summary table -->
       <table class="table table-bordered text-center align-middle" style="width: 95%; margin: auto;">
         <thead class="table-light">
           <tr>
@@ -115,6 +117,7 @@
     <% } %>
 
   </div>
+  <!-- Refund request handler -->
   <script>
     (function () {
       const buttons = Array.from(document.querySelectorAll('.refund-btn'));

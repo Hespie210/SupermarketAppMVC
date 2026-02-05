@@ -11,6 +11,7 @@
   <%- include('partials/header') %>
 
   <div class="container mt-4">
+    <!-- Invoice header -->
     <div class="page-hero mb-3">
       <div class="d-flex justify-content-between flex-wrap align-items-center">
         <div>
@@ -66,6 +67,7 @@
       </div>
     </div>
 
+    <!-- Line items table -->
     <div class="table-responsive">
       <table class="table table-striped align-middle">
         <thead>
@@ -119,6 +121,7 @@
       </table>
     </div>
 
+    <!-- Admin-only status update + refund actions -->
     <% if (isAdmin && statuses) { %>
       <% const refundLocked = status === 'Refunded'; %>
       <form action="/admin/orders/<%= orderNumber %>/status" method="POST" class="mt-3 d-flex flex-wrap gap-2 align-items-center">

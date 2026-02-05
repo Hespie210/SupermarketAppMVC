@@ -1,4 +1,5 @@
 // routes/productRoutes.js
+// Product browsing + inventory routes (admin gated where needed).
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');

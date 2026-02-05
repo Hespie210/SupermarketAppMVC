@@ -14,7 +14,7 @@
   <div class="container" style="max-width: 500px;">
     <h1 class="mt-5 mb-4">Login</h1>
 
-    <!-- ERROR MESSAGES -->
+    <!-- Flash error messages -->
     <% if (error && error.length > 0) { %>
       <div class="alert alert-danger">
         <% error.forEach(function(msg) { %>
@@ -23,7 +23,7 @@
       </div>
     <% } %>
 
-    <!-- SUCCESS MESSAGES -->
+    <!-- Flash success messages -->
     <% if (success && success.length > 0) { %>
       <div class="alert alert-success">
         <% success.forEach(function(msg) { %>
@@ -32,6 +32,7 @@
       </div>
     <% } %>
 
+    <!-- Login form -->
     <form action="/login" method="POST" class="mt-4">
       <div class="mb-3">
         <label for="email" class="form-label">Email:</label>

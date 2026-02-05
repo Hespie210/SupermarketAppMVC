@@ -1,3 +1,4 @@
+// App entry point: load env, configure Express, mount routes, start server.
 require('dotenv').config();                // <--- load .env FIRST
 
 const express = require('express');
@@ -8,23 +9,23 @@ const User = require('./models/userModel');
 
 const app = express();
 
-// Ensure DB connects
+// Ensure DB connects before handling requests.
 require('./db');
 
-// View engine
+// View engine (EJS templates).
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Body parser
+// Body parser for form and JSON submissions.
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Static files
+// Static files (CSS, images, uploads).
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.use('/profile', express.static(path.join(__dirname, 'public/profile'))); // <--- for profile pics
 
-// Sessions + flash
+// Sessions + flash for auth and feedback messages.
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret',
   resave: false,
@@ -33,7 +34,7 @@ app.use(session({
 }));
 app.use(flash());
 
-// Make user & flash available in all views
+// Make user & flash messages available in all views.
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.success = req.flash('success');
@@ -41,7 +42,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Attach store credit balance for navbar display
+// Attach store credit balance for navbar display.
 app.use((req, res, next) => {
   const user = req.session.user;
   if (!user) {
@@ -67,7 +68,7 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
 
-// Use them:
+// Mount route modules.
 app.use('/', indexRoutes);
 app.use('/', authRoutes);
 app.use('/', productRoutes);
@@ -76,7 +77,7 @@ app.use('/', wishlistRoutes);
 app.use('/', adminRoutes);      
 app.use('/', userRoutes);      
 
-// Start server
+// Start server.
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

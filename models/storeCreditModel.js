@@ -1,7 +1,9 @@
 // models/storeCreditModel.js
+// Data access for store_credit_transactions table.
 const db = require('../db');
 
 const StoreCredit = {
+  // Record a top-up/refund transaction (no-op if table/columns missing).
   addTransaction: (userId, amount, type, reference, callback) => {
     const sql = `
       INSERT INTO store_credit_transactions (userId, amount, type, reference)
@@ -15,6 +17,7 @@ const StoreCredit = {
     });
   },
 
+  // Get recent store credit transactions for a user.
   getHistoryByUser: (userId, limit = 10, callback) => {
     const sql = `
       SELECT id, userId, amount, type, reference, createdAt

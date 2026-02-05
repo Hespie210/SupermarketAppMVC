@@ -1,3 +1,4 @@
+<!-- Shared top navigation (role-aware links) -->
 <nav class="navbar navbar-expand-lg navbar-dark glass-nav sticky-top">
   <div class="container-fluid">
     <a class="navbar-brand d-flex align-items-center gap-2" href="/" style="color:#000;">
@@ -10,6 +11,7 @@
     </button>
 
     <div class="collapse navbar-collapse" id="mainNavbar">
+      <!-- Left nav links -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <% if (user) { %>
           <% if (user.role !== 'admin') { %>
@@ -44,6 +46,7 @@
         <% } %>
       </ul>
 
+      <!-- Right-side account links -->
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <% if (user) { %>
           <% if (user.role !== 'admin') { %>

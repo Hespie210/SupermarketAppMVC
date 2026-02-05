@@ -1,4 +1,5 @@
 // models/purchaseModel.js
+// Legacy purchase record queries (used for receipt summaries).
 const db = require('../db');
 
 /*

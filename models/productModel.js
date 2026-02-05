@@ -1,7 +1,9 @@
 // models/productModel.js
+// Data access layer for the products table.
 const db = require('../db');
 
 const Product = {
+  // List all products (including zero quantity).
   getAllProducts: (callback) => {
     const sql = `
       SELECT 
@@ -16,6 +18,7 @@ const Product = {
     db.query(sql, callback);
   },
   
+  // Search all products by name (LIKE match).
   searchProductsByName: (searchTerm, callback) => {
     const like = `%${searchTerm}%`;
     const sql = `
@@ -32,6 +35,7 @@ const Product = {
     db.query(sql, [like], callback);
   },
 
+  // Fetch a single product by id.
   getProductById: (id, callback) => {
     const sql = `
       SELECT 
@@ -50,6 +54,7 @@ const Product = {
     });
   },
 
+  // List only in-stock products.
   getActiveProducts: (callback) => {
     const sql = `
       SELECT 
@@ -65,6 +70,7 @@ const Product = {
     db.query(sql, callback);
   },
   
+  // Search only in-stock products by name.
   searchActiveProductsByName: (searchTerm, callback) => {
     const like = `%${searchTerm}%`;
     const sql = `
@@ -81,6 +87,7 @@ const Product = {
     db.query(sql, [like], callback);
   },
 
+  // Insert a new product record.
   createProduct: (productData, callback) => {
     const { productName, quantity, price, image } = productData;
     const sql = `
@@ -90,6 +97,7 @@ const Product = {
     db.query(sql, [productName, quantity, price, image], callback);
   },
 
+  // Update a product record by id.
   updateProduct: (id, productData, callback) => {
     const { productName, quantity, price, image } = productData;
     const sql = `
@@ -101,6 +109,7 @@ const Product = {
   },
 
   // Needed for wishlist
+  // Bulk fetch products by ids (used by wishlist).
   getProductsByIds: (ids, callback) => {
     if (!ids || ids.length === 0) return callback(null, []);
 
@@ -121,6 +130,7 @@ const Product = {
   },
 
   // delete the product + related purchases
+  // Remove purchase rows first (FK), then delete the product row.
   deleteProduct: (id, callback) => {
     // Remove dependent purchase rows first to satisfy FK constraint, then delete the product row.
     const deletePurchasesSql = 'DELETE FROM purchases WHERE productId = ?';
@@ -132,6 +142,7 @@ const Product = {
     });
   },
 
+  // Update stock quantity for a product.
   updateQuantity: (id, quantity, callback) => {
     const sql = 'UPDATE products SET quantity = ? WHERE id = ?';
     db.query(sql, [quantity, id], callback);

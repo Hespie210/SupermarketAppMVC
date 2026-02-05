@@ -1,3 +1,5 @@
+// services/stripe.js
+// Stripe Checkout and refund helpers.
 const Stripe = require('stripe');
 
 let stripeClient = null;

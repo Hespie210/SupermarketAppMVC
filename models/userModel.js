@@ -1,8 +1,9 @@
 // models/userModel.js
+// Data access layer for users table.
 const db = require('../db');
 
 const User = {
-  // Insert full user record
+  // Insert full user record.
   // username, email, hashedPassword, address, contact, role
   createUser: (username, email, hashedPassword, address, contact, role, callback) => {
     const sql = `
@@ -12,7 +13,7 @@ const User = {
     db.query(sql, [username, email, hashedPassword, address, contact, role], callback);
   },
 
-  // Login by email - always use latest record for that email
+  // Login by email - always use latest record for that email.
   getUserByEmail: (email, callback) => {
     const sql = 'SELECT * FROM users WHERE email = ? ORDER BY id DESC LIMIT 1';
     db.query(sql, [email], (err, results) => {
@@ -21,7 +22,7 @@ const User = {
     });
   },
 
-  // Get user by ID (includes email, role, profileImage, etc.)
+  // Get user by ID (includes email, role, profileImage, etc.).
   getUserById: (id, callback) => {
     const sql = 'SELECT * FROM users WHERE id = ?';
     db.query(sql, [id], (err, results) => {
@@ -30,7 +31,7 @@ const User = {
     });
   },
 
-  // Get ALL users (for admin dashboard)
+  // Get ALL users (for admin dashboard).
   getAllUsers: (callback) => {
     const sql = `
       SELECT id, username, email, address, contact, role, profileImage
@@ -40,7 +41,7 @@ const User = {
     db.query(sql, callback);
   },
 
-  // Soft delete user by ID (preserve record for audit/history; block admins)
+  // Soft delete user by ID (preserve record for audit/history; block admins).
   deleteUserById: (id, callback) => {
     const sql = `
       UPDATE users
@@ -50,7 +51,7 @@ const User = {
     db.query(sql, [id], callback);
   },
 
-  // Update profile picture filename
+  // Update profile picture filename.
   updateProfileImage: (id, filename, callback) => {
     const sql = `
       UPDATE users 
@@ -60,6 +61,7 @@ const User = {
     db.query(sql, [filename, id], callback);
   },
 
+  // Update username/email/role for a user.
   updateUser: (id, data, callback) => {
     const { username, email, role } = data;
     const sql = `
@@ -70,6 +72,7 @@ const User = {
     db.query(sql, [username, email, role, id], callback);
   },
 
+  // Read store credit balance (falls back to 0 if column missing).
   getStoreCredit: (id, callback) => {
     const sql = 'SELECT storeCredit FROM users WHERE id = ?';
     db.query(sql, [id], (err, results) => {
@@ -84,6 +87,7 @@ const User = {
     });
   },
 
+  // Add (or subtract) store credit.
   addStoreCredit: (id, amount, callback) => {
     const value = Number(amount) || 0;
     const sql = `
@@ -99,6 +103,7 @@ const User = {
     });
   },
 
+  // Count active (non-deleted) users.
   getUserCount: (callback) => {
     const sql = `
       SELECT COUNT(*) AS totalUsers

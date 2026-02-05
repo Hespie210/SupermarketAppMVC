@@ -1,4 +1,5 @@
 ﻿// controllers/wishlistController.js
+// Wishlist management for the current user.
 const Wishlist = require('../models/wishlistModel'); // make sure file name matches
 const Product = require('../models/productModel');
 

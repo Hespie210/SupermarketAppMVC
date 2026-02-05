@@ -1,4 +1,5 @@
 // routes/userRoutes.js
+// User profile and store-credit routes.
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');

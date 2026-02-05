@@ -1,4 +1,5 @@
 // routes/wishlistRoutes.js
+// Wishlist routes for user accounts.
 const express = require('express');
 const router = express.Router();
 const wishlistController = require('../controllers/wishlistController');

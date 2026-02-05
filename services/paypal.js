@@ -1,3 +1,5 @@
+// services/paypal.js
+// PayPal REST helper functions (create/capture/refund).
 require('dotenv').config();
 
 const PAYPAL_CLIENT = process.env.PAYPAL_CLIENT_ID;

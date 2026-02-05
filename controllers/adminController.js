@@ -1,4 +1,5 @@
 // controllers/adminController.js
+// Admin-only actions: dashboard metrics, order management, refunds, and user admin.
 const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
 const Order = require('../models/orderModel');
@@ -20,6 +21,7 @@ const STATUS_VALUES = [
 ];
 
 const adminController = {
+  // Dashboard summary: counts, revenue, status breakdown.
   showDashboard: (req, res) => {
     User.getUserCount((errUser, totalUsers) => {
       if (errUser) {
@@ -58,6 +60,7 @@ const adminController = {
     });
   },
 
+  // Update order status (including refund handling).
   updateOrderStatus: (req, res) => {
     const orderId = parseInt(req.params.orderId, 10);
     const newStatus = (req.body.status || '').trim();
@@ -185,7 +188,7 @@ const adminController = {
     });
   },
 
-  // Admin: view all users
+  // Admin: view all users.
   showUsers: (req, res) => {
     User.getAllUsers((err, results) => {
       if (err) {
@@ -196,6 +199,7 @@ const adminController = {
     });
   },
 
+  // Admin: view a single user's details.
   showUserDetails: (req, res) => {
     const id = parseInt(req.params.id, 10);
     User.getUserById(id, (err, user) => {
@@ -211,10 +215,12 @@ const adminController = {
     });
   },
 
+  // Admin: show create user form.
   showCreateUser: (req, res) => {
     res.render('adminCreateUser');
   },
 
+  // Admin: create a new user account.
   createUser: (req, res) => {
     const { username, email, password, address, contact, role } = req.body;
     const allowedRoles = ['admin', 'user'];
@@ -239,6 +245,7 @@ const adminController = {
     });
   },
 
+  // Admin: show edit user form.
   showEditUser: (req, res) => {
     const id = parseInt(req.params.id, 10);
     User.getUserById(id, (err, user) => {
@@ -249,6 +256,7 @@ const adminController = {
     });
   },
 
+  // Admin: update user info/role.
   updateUser: (req, res) => {
     const id = parseInt(req.params.id, 10);
     const { username, email, role } = req.body;
@@ -262,7 +270,7 @@ const adminController = {
     });
   },
 
-  // Admin: delete user (do not delete yourself)
+  // Admin: delete user (soft delete, do not delete yourself).
   deleteUser: (req, res) => {
     const id = parseInt(req.params.id, 10);
 
@@ -303,7 +311,7 @@ const adminController = {
     });
   },
 
-  // Admin: view all purchase lines
+  // Admin: view all purchase/order summaries with filters.
   showAllPurchases: (req, res) => {
     const { q = '', status = '' } = req.query;
 
@@ -329,7 +337,7 @@ const adminController = {
     });
   },
 
-  // Admin: detailed receipt view for a particular user + checkout
+  // Admin: detailed receipt view for a specific order.
   showReceiptDetails: (req, res) => {
     const orderId = parseInt(req.params.orderId, 10);
 
@@ -369,6 +377,7 @@ const adminController = {
     });
   },
 
+  // Admin: approve refund request (PayPal/Stripe/NETS/Store Credit).
   refundOrder: async (req, res) => {
     const orderId = parseInt(req.params.orderId, 10);
 
@@ -486,6 +495,7 @@ const adminController = {
     });
   },
 
+  // Admin: reject a refund request.
   rejectRefundRequest: (req, res) => {
     const orderId = parseInt(req.params.orderId, 10);
 

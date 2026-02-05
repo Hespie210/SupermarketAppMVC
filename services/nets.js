@@ -1,11 +1,15 @@
+// services/nets.js
+// NETS QR helper functions (request QR, poll status, parse responses).
 const fs = require("fs");
 const path = require("path");
 
+// Use global fetch if available; otherwise lazy-load node-fetch.
 const getFetch = () => {
   if (typeof fetch === 'function') return fetch;
   return (...args) => import('node-fetch').then(({ default: nodeFetch }) => nodeFetch(...args));
 };
 
+// Load courseInitId from module, file, or env.
 const getCourseInitIdParam = () => {
   try {
     require.resolve("./../course_init_id");
@@ -31,12 +35,14 @@ const getCourseInitIdParam = () => {
   }
 };
 
+// Build webhook URL used to poll NETS status.
 const buildWebhookUrl = (txnRetrievalRef, courseInitId) => {
   const ref = encodeURIComponent(txnRetrievalRef || "");
   const course = encodeURIComponent(courseInitId || "");
   return `https://sandbox.nets.openapipaas.com/api/v1/common/payments/nets/webhook?txn_retrieval_ref=${ref}&course_init_id=${course}`;
 };
 
+// Normalize NETS response into a consistent shape.
 const extractStatus = (payload) => {
   const root = payload || {};
   const data = root.result?.data || root.data || root;
@@ -49,6 +55,7 @@ const extractStatus = (payload) => {
   return { responseCode, txnStatus, networkStatus, message, raw: data };
 };
 
+// Determine if NETS status is successful.
 const isSuccessStatus = ({ responseCode, txnStatus, message }) => {
   const normalized = String(txnStatus).toLowerCase();
   const msg = String(message || "").toLowerCase();
@@ -65,6 +72,7 @@ const isSuccessStatus = ({ responseCode, txnStatus, message }) => {
   );
 };
 
+// Determine if NETS status is a failure.
 const isFailureStatus = ({ responseCode, txnStatus }) => {
   const normalized = String(txnStatus).toLowerCase();
   return (
@@ -76,6 +84,7 @@ const isFailureStatus = ({ responseCode, txnStatus }) => {
   );
 };
 
+// Request a QR code for the given total.
 const requestQrData = async (cartTotal) => {
   const requestBody = {
     txn_id: "sandbox_nets|m|8ff8e5b6-d43e-4786-8ac5-7accf8c5bd9b", // Default for testing
@@ -99,10 +108,12 @@ const requestQrData = async (cartTotal) => {
   return response.json();
 };
 
+// Public wrapper for QR creation.
 const createQrForTotal = async (cartTotal) => {
   return requestQrData(cartTotal);
 };
 
+// Poll NETS webhook for payment status.
 const fetchPaymentStatus = async ({ txnRetrievalRef, courseInitId }) => {
   if (!txnRetrievalRef) throw new Error("Missing transaction reference");
 
@@ -177,6 +188,7 @@ const fetchPaymentStatus = async ({ txnRetrievalRef, courseInitId }) => {
   };
 };
 
+// Legacy controller-style handlers (still used in some flows).
 exports.generateQrCode = async (req, res) => {
   const { cartTotal } = req.body;
   console.log(cartTotal);
@@ -240,6 +252,7 @@ exports.generateQrCode = async (req, res) => {
   }
 };
 
+// JSON-only QR creation (AJAX).
 exports.generateQrCodeJson = async (req, res) => {
   const { cartTotal } = req.body || {};
   if (!cartTotal) return res.status(400).json({ error: "Missing cartTotal" });

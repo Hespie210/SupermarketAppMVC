@@ -1,4 +1,5 @@
 // controllers/authController.js
+// Handles registration, login, and logout flows for users.
 const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
 
@@ -8,7 +9,7 @@ const authController = {
     res.render('register');
   },
 
-  // Handle register
+  // Handle register (hash password, create user, then redirect to login).
   register: (req, res) => {
     const { username, email, password, address, contact } = req.body;
     const finalRole = 'user'; // enforce basic user role on self-registration
@@ -37,7 +38,7 @@ const authController = {
     res.render('login');
   },
 
-  // Login with email + password
+  // Login with email + password (store minimal user info in session).
   login: (req, res) => {
     const { email, password } = req.body;
 

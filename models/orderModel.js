@@ -1,7 +1,8 @@
 // models/orderModel.js
+// Data access layer for orders and order_items (including store credit flow).
 const db = require('../db');
 
-// Supported statuses
+// Supported statuses for validation and UI labels.
 const STATUS_VALUES = [
   'Processing',
   'Packing',
@@ -15,7 +16,7 @@ const STATUS_VALUES = [
   'Refunded'
 ];
 
-// Statuses that should be auto-cancelled when a user is removed
+// Statuses that should be auto-cancelled when a user is removed.
 const CANCEL_ON_DELETE_STATUSES = [
   'Processing',
   'Packing',
@@ -23,6 +24,7 @@ const CANCEL_ON_DELETE_STATUSES = [
   'Failed Payment'
 ];
 
+// Simple keyword-based category tagging for order detail display.
 const CATEGORY_MAP = [
   { name: 'Fruits', match: ['apple', 'apples', 'banana', 'bananas'] },
   { name: 'Vegetables', match: ['broccoli', 'tomato', 'tomatoes'] },
@@ -30,7 +32,7 @@ const CATEGORY_MAP = [
   { name: 'Bakery', match: ['bread'] }
 ];
 
-// Helper: try primary query, and on missing column errors fall back.
+// Helper: try primary query, and on missing column errors fall back for older schema.
 function queryWithFallback(primarySql, primaryParams, fallbackSql, fallbackParams, callback, postProcess) {
   db.query(primarySql, primaryParams, (err, results) => {
     if (err && err.code === 'ER_BAD_FIELD_ERROR' && fallbackSql) {
@@ -44,6 +46,7 @@ function queryWithFallback(primarySql, primaryParams, fallbackSql, fallbackParam
   });
 }
 
+// Determine category from a product name; falls back to "Other".
 function detectCategory(productName = '') {
   const lower = (productName || '').toLowerCase();
   for (const group of CATEGORY_MAP) {
@@ -53,7 +56,7 @@ function detectCategory(productName = '') {
 }
 
 const Order = {
-  // Create order + items in a transaction with graceful fallback if columns missing
+  // Create order + items in a transaction, with schema fallback if columns are missing.
   createOrder: (userId, cart, totals, invoiceNumber, callback) => {
     if (!cart || !cart.length) return callback(new Error('Cart is empty'));
 
@@ -157,7 +160,7 @@ const Order = {
     });
   },
 
-  // Create order paid with store credit (atomic: balance + order + items + inventory)
+  // Create order paid with store credit (atomic: balance + order + items + inventory).
   createOrderWithStoreCredit: (userId, cart, totals, invoiceNumber, callback) => {
     if (!cart || !cart.length) return callback(new Error('Cart is empty'));
 
@@ -285,7 +288,7 @@ const Order = {
     });
   },
 
-  // User: list of orders with totals
+  // User: list of orders with totals (grouped by order).
   getOrdersByUser: (userId, callback) => {
     const sql = `
       SELECT
@@ -325,7 +328,7 @@ const Order = {
     queryWithFallback(sql, [userId], fallbackSql, [userId], callback);
   },
 
-  // User: order details
+  // User: order details (items + product info + computed categories).
   getOrderDetailsByUser: (userId, orderId, callback) => {
     const sql = `
       SELECT
@@ -392,7 +395,7 @@ const Order = {
     });
   },
 
-  // Admin: aggregated orders with user info
+  // Admin: aggregated orders with user info.
   getAllOrdersWithUsers: (callback) => {
     const sql = `
       SELECT
@@ -438,7 +441,7 @@ const Order = {
     queryWithFallback(sql, [], fallbackSql, [], callback);
   },
 
-  // Admin: order detail with user info
+  // Admin: order detail with user info (items + product info).
   getOrderDetailsForAdmin: (orderId, callback) => {
     const sql = `
       SELECT
@@ -507,6 +510,7 @@ const Order = {
     });
   },
 
+  // Update order status with validation.
   updateStatus: (orderId, status, callback) => {
     if (!STATUS_VALUES.includes(status)) {
       return callback(new Error('Invalid status'));
@@ -515,6 +519,7 @@ const Order = {
     db.query(sql, [status, orderId], callback);
   },
 
+  // Fetch an order with user role (used for auth checks).
   getOrderWithUser: (orderId, callback) => {
     const sql = `
       SELECT o.id, o.status, o.userId, u.role AS userRole, o.paymentMethod, o.paymentRef, o.total
@@ -534,6 +539,7 @@ const Order = {
     });
   },
 
+  // Update optional payment metadata (method/ref/refundRef) if columns exist.
   updatePaymentMeta: (orderId, meta, callback) => {
     if (!meta || typeof meta !== 'object') return callback(null);
 
@@ -568,6 +574,7 @@ const Order = {
     });
   },
 
+  // Cancel in-flight orders when a user is deleted.
   cancelOrdersForUser: (userId, callback) => {
     const sql = `
       UPDATE orders
